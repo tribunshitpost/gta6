@@ -1,18 +1,5 @@
-# Dependencies installed locally (never committed).
-node_modules/
-
-# Local build / hand-in output produced by `node main.ts`.
+# Neon Bay — build outputs and local clutter stay out of the repo.
 out/
-dist/
-
-# Test, coverage and editor artefacts.
-coverage/
-.playwright/
-playwright-report/
-.cache/
-*.log
-*.tmp
-
-# OS artefacts.
+node_modules/
 .DS_Store
-Thumbs.db
+*.log
