@@ -1,15 +1,19 @@
 // Pedestrians: sidewalk walkers who stroll, panic and flee when scared,
 // and can be knocked down. Pure crowd life for the city.
+// Revision: livelier crowds — quicker walkers, a wider scare radius, a
+// harder sprint when they panic, and varied skin tones so the same few
+// faces don't repeat down every block.
 
 import * as THREE from 'three';
 import { CONFIG } from './config.js';
 import { makeRng, clamp, dist2D, turnToward } from './util.js';
 import { nearestRoad } from './city.js';
 
-const SHIRTS = [0xe84a5f, 0x4a90e8, 0x50c878, 0xf2a541, 0x9b59b6, 0xdddddd, 0x2ecc71, 0xe67e22];
+const SHIRTS = [0xe84a5f, 0x4a90e8, 0x50c878, 0xf2a541, 0x9b59b6, 0xdddddd, 0x2ecc71, 0xe67e22, 0x1abc9c];
 const PANTS = [0x2c3e50, 0x34495e, 0x5d4037, 0x1a1a1a, 0x4a6741];
+const SKINS = [0xe8b98a, 0xc98d5f, 0x8a5a3b, 0xf2c9a0];
 const PED_RADIUS = 0.6;
-const SCARE_RADIUS = 18;
+const SCARE_RADIUS = 22;
 
 /**
  * Build a simple low-poly person. Returns the group plus the four limbs
@@ -57,7 +61,7 @@ export class Pedestrian {
     this.x = x;
     this.z = z;
     this.heading = rng() * Math.PI * 2;
-    this.speed = 1.2 + rng() * 1.1;
+    this.speed = 1.4 + rng() * 1.2;
     this.state = 'walk'; // walk | panic | down
     this.panicTimer = 0;
     this.target = this.pickTarget(rng);
@@ -65,6 +69,7 @@ export class Pedestrian {
     const mesh = buildPersonMesh(
       SHIRTS[Math.floor(rng() * SHIRTS.length)],
       PANTS[Math.floor(rng() * PANTS.length)],
+      SKINS[Math.floor(rng() * SKINS.length)],
     );
     this.group = mesh.group;
     this.legL = mesh.legL;
@@ -86,7 +91,7 @@ export class Pedestrian {
   scare() {
     if (this.state === 'down') return;
     this.state = 'panic';
-    this.panicTimer = 4 + Math.random() * 3;
+    this.panicTimer = 5 + Math.random() * 3;
   }
 
   /** Knocked down by a bullet or a punch — stays down for the session. */
@@ -105,7 +110,7 @@ export class Pedestrian {
     let speed = this.speed;
     if (this.state === 'panic') {
       this.panicTimer -= dt;
-      speed = this.speed * 2.6;
+      speed = this.speed * 3.0;
       if (this.panicTimer <= 0) this.state = 'walk';
       // Flee directly away from the threat.
       const away = Math.atan2(this.x - threatX, this.z - threatZ);
@@ -166,7 +171,7 @@ export class PedestrianManager {
   }
 
   /** Scare every pedestrian within `radius` of a point. */
-  scareNear(x, z, radius = 20) {
+  scareNear(x, z, radius = 24) {
     for (const ped of this.peds) {
       if (dist2D(x, z, ped.x, ped.z) < radius) ped.scare();
     }

@@ -1,5 +1,5 @@
-// Shared helpers for Neon Bay: deterministic RNG, small math utilities,
-// and circle-vs-box collision. Pure functions only — no DOM, no three.js,
+// Shared helpers for Neon Bay: a deterministic RNG, small math utilities,
+// and circle-vs-box collision. Pure functions only — no DOM, no three.js —
 // so every helper here can be reasoned about (and tested) in isolation.
 
 /** Deterministic RNG (mulberry32). Fixed seeds make screenshot scenes reproducible. */
@@ -14,11 +14,28 @@ export function makeRng(seed) {
   };
 }
 
+/** A random number in [min, max) from a seeded RNG (or Math.random by default). */
+export function randomInRange(rng, min, max) {
+  const draw = typeof rng === 'function' ? rng() : Math.random();
+  return min + draw * (max - min);
+}
+
 /** Clamp `value` into the inclusive range [low, high]. */
 export function clamp(value, low, high) {
   if (value < low) return low;
   if (value > high) return high;
   return value;
+}
+
+/** Clamp `value` into the 0..1 range. */
+export function clamp01(value) {
+  return clamp(value, 0, 1);
+}
+
+/** Smoothstep easing: 0 below `low`, 1 above `high`, smooth in between. */
+export function smoothstep(low, high, value) {
+  const t = clamp01((value - low) / (high - low));
+  return t * t * (3 - 2 * t);
 }
 
 /** Linear interpolation between `a` and `b` at parameter `t`. */
@@ -29,6 +46,13 @@ export function lerp(a, b, t) {
 /** Flat (2D) distance between two points on the ground plane. */
 export function dist2D(ax, az, bx, bz) {
   return Math.hypot(ax - bx, az - bz);
+}
+
+/** Squared flat distance — cheaper than dist2D when only comparing ranges. */
+export function distSq2D(ax, az, bx, bz) {
+  const dx = ax - bx;
+  const dz = az - bz;
+  return dx * dx + dz * dz;
 }
 
 /** Wrap an angle into the range [-PI, PI]. */
@@ -95,7 +119,14 @@ export function fmtMoney(amount) {
   return '$' + Math.floor(amount).toLocaleString('en-US');
 }
 
-/** Format a speed in world units/second as "137 km/h" for the speedometer. */
+/** Format a speed in world units/second as "148 km/h" for the speedometer. */
 export function fmtSpeed(unitsPerSecond) {
   return Math.round(Math.abs(unitsPerSecond) * 3.6) + ' km/h';
+}
+
+/** Format a duration in seconds as "2:34" for timers and stats. */
+export function fmtTime(totalSeconds) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = Math.floor(totalSeconds % 60);
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }

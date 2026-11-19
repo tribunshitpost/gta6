@@ -2,6 +2,8 @@
 // Stars rise with crime and fall when the player stays quiet and unseen.
 // Police cars chase and ram the player's car; foot cops chase the player
 // on foot and try to bust them. Getting busted or wasted costs money.
+// Revision: the heat is sharper now — faster spawns, quicker cops, and a
+// longer sight range, so a 3-star chase actually feels like one.
 
 import * as THREE from 'three';
 import { CONFIG } from './config.js';
@@ -12,9 +14,9 @@ import { buildPersonMesh } from './pedestrians.js';
 const POLICE_CAR_COLOR = 0x1a1a1a;
 const COP_SHIRT = 0x1a2a6b;
 const COP_PANTS = 0x14181f;
-const BUST_HOLD_SECONDS = 1.4; // a cop must stay this close to bust the player
-const SPAWN_INTERVAL = 3; // seconds between police spawn attempts
-const SIGHT_RANGE = 55; // within this, the player counts as "seen"
+const BUST_HOLD_SECONDS = 1.6; // a cop must stay this close to bust the player
+const SPAWN_INTERVAL = 2.5; // seconds between police spawn attempts
+const SIGHT_RANGE = 60; // within this, the player counts as "seen"
 
 /** The star rating: how wanted the player is, and how fast it cools off. */
 export class WantedSystem {
@@ -67,9 +69,9 @@ export class PoliceCar extends Car {
   updateChase(dt, city, tx, tz, playerSpeed) {
     const d = dist2D(this.x, this.z, tx, tz);
     const want = Math.atan2(tx - this.x, tz - this.z);
-    this.heading = turnToward(this.heading, want, 2.2 * dt);
+    this.heading = turnToward(this.heading, want, 2.4 * dt);
     // Close the gap fast, then match the player's speed up close.
-    const targetSpeed = d > 6 ? Math.min(30, playerSpeed + 9) : 12;
+    const targetSpeed = d > 6 ? Math.min(32, playerSpeed + 10) : 13;
     this.speed += clamp(targetSpeed - this.speed, -20 * dt, 12 * dt);
     this.x += Math.sin(this.heading) * this.speed * dt;
     this.z += Math.cos(this.heading) * this.speed * dt;
@@ -88,7 +90,7 @@ class FootCop {
     this.x = x;
     this.z = z;
     this.heading = 0;
-    this.speed = 7.2;
+    this.speed = 7.8;
     this.bustTimer = 0;
     this.walkPhase = Math.random() * 6;
     const mesh = buildPersonMesh(COP_SHIRT, COP_PANTS, 0xd9a066);
@@ -174,7 +176,7 @@ export class PoliceManager {
         this.cars.push(this.spawnAtRing(px, pz, 70, (x, z) => new PoliceCar(this.scene, x, z)));
       }
       if (this.cops.length < wantCops) {
-        this.cops.push(this.spawnAtRing(px, pz, 40, (x, z) => new FootCop(this.scene, x, z)));
+        this.cops.push(this.spawnAtRing(px, pz, 35, (x, z) => new FootCop(this.scene, x, z)));
       }
     }
     // Chase.

@@ -3,16 +3,17 @@
 // loop are all generated live. Audio starts on the first user gesture,
 // because browsers block sound before one.
 
-const MASTER_VOLUME = 0.5;
-const ENGINE_FILTER_HZ = 420;
-const SIREN_LOW_HZ = 660;
-const SIREN_HIGH_HZ = 880;
-const MUSIC_STEP_MS = 240;
+const MASTER_VOLUME = 0.45;
+const ENGINE_FILTER_HZ = 480;
+const SIREN_LOW_HZ = 700;
+const SIREN_HIGH_HZ = 940;
+const MUSIC_STEP_MS = 220;
 
-// A minor-key bassline (A A C G A A D E) with a sparkle arpeggio on top.
-const BASS_LINE = [110, 110, 130.81, 98, 110, 110, 146.83, 164.81];
+// A minor-key bassline (A C G A D E C G) with a sparkle arpeggio on top,
+// a touch faster and brighter than the first cut of the loop.
+const BASS_LINE = [110, 130.81, 98, 110, 146.83, 164.81, 130.81, 98];
 const ARP_LINE = [440, 523.25, 659.25, 880, 659.25, 523.25];
-const WIN_ARPEGGIO = [523, 659, 784, 1047];
+const WIN_ARPEGGIO = [523, 659, 784, 1047, 1319];
 const LOSE_ARPEGGIO = [392, 330, 262];
 
 export class AudioEngine {
@@ -88,7 +89,7 @@ export class AudioEngine {
     const targetGain = driving ? 0.05 + speed * 0.11 : 0;
     const now = this.ctx.currentTime;
     this.engineGain.gain.setTargetAtTime(targetGain, now, 0.08);
-    this.engineOsc.frequency.setTargetAtTime(50 + speed * 170, now, 0.08);
+    this.engineOsc.frequency.setTargetAtTime(50 + speed * 180, now, 0.08);
   }
 
   /** `on` = the player has any wanted stars. Call every frame. */
@@ -100,7 +101,7 @@ export class AudioEngine {
       return;
     }
     this.sirenTimer += dt;
-    const high = Math.floor(this.sirenTimer * 2.4) % 2 === 0;
+    const high = Math.floor(this.sirenTimer * 2.6) % 2 === 0;
     const freq = high ? SIREN_LOW_HZ : SIREN_HIGH_HZ;
     this.sirenOsc.frequency.setTargetAtTime(freq, now, 0.05);
     this.sirenGain.gain.setTargetAtTime(0.045, now, 0.1);
@@ -180,6 +181,15 @@ export class AudioEngine {
 
   click() {
     this.blip(660, 0.05, 'square', 0.08);
+  }
+
+  /** Stop the music loop (used when the tab is hidden or the game quits). */
+  stopMusic() {
+    this.musicOn = false;
+    if (this.musicTimer) {
+      clearInterval(this.musicTimer);
+      this.musicTimer = null;
+    }
   }
 
   // Tiny synth-wave loop: the bassline plus a sparkle arp, scheduled with

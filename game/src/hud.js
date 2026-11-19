@@ -10,9 +10,9 @@ const MAX_WANTED_STARS = 5;
 
 const START_HTML = `
   <p class="tagline">An open-world crime story in a sun-soaked bay city.</p>
-  <p>You are <b>Rook</b>, a driver fresh off the bus in Neon Bay. Marla Voss
+  <p>You are <b>Rook</b>, a wheelman fresh off the bus in Neon Bay. Marla Voss
   runs the city's quiet jobs — and she needs a driver she can trust.
-  Steal cars, outrun the police, run her missions, and make the city yours.</p>
+  Lift cars, lose the police, run her missions, and make the city yours.</p>
   <div class="controls">
     <div><b>W A S D</b> — move / drive</div>
     <div><b>Mouse</b> — look (click to lock)</div>
@@ -22,7 +22,7 @@ const START_HTML = `
     <div><b>M</b> — mute &nbsp; <b>H</b> — help</div>
   </div>
   <p class="hint">Stealing a car or hurting someone raises your wanted level.
-  Lay low and the heat fades. Find the green cash bundles around the city.</p>
+  Lay low and the heat fades. Green cash bundles hidden around the city pay $30 each.</p>
 `;
 
 const HELP_HTML = `
@@ -35,8 +35,9 @@ const HELP_HTML = `
     <div><b>C</b> — switch camera &nbsp; <b>P</b> / <b>Esc</b> — pause &nbsp; <b>M</b> — mute</div>
   </div>
   <p>Follow the gold beacon to Marla's office to start a mission. Green bundles
-  are hidden cash ($25 each). Stealing and violence raise your wanted level —
-  police cars ram you, foot cops try to bust you. Stay quiet and the stars fade.</p>
+  are hidden cash ($30 each). Stealing and violence raise your wanted level —
+  police cars ram you, foot cops try to bust you. Stay quiet for 18 seconds
+  and a star fades.</p>
 `;
 
 export class HUD {
@@ -108,7 +109,7 @@ export class HUD {
     this.setMenuTitle('PAUSED');
     this.showMenu(
       `<p>Take a breath, Rook. The city will wait.</p>
-       <p class="hint">Progress auto-saves when you finish a mission.</p>`,
+       <p class="hint">Progress auto-saves when you finish a mission — or save right now.</p>`,
       [
         { label: 'Resume', onClick: onResume },
         { label: 'Save Game', onClick: onSave },
@@ -120,8 +121,8 @@ export class HUD {
   showBusted(onRespawn) {
     this.setMenuTitle('BUSTED');
     this.showMenu(
-      `<p>The Neon Bay police hauled you in. You paid the fine and walked free —
-      minus some cash and your dignity.</p>`,
+      `<p>The Neon Bay police hauled you in and held you just long enough to
+      fine you $100. You walked free — minus the cash and your dignity.</p>`,
       [{ label: 'Back to the streets', onClick: onRespawn }],
     );
   }
@@ -129,7 +130,7 @@ export class HUD {
   showWasted(onRespawn) {
     this.setMenuTitle('WASTED');
     this.showMenu(
-      `<p>You woke up at St. Marina Hospital, patched up and lighter in the wallet.
+      `<p>You woke up at St. Marina Hospital, patched up and $125 lighter.
       The city doesn't wait — neither should you.</p>`,
       [{ label: 'Back to the streets', onClick: onRespawn }],
     );
@@ -144,8 +145,8 @@ export class HUD {
     this.setMenuTitle('NEON BAY IS YOURS');
     this.showMenu(
       `<p>You finished every job Marla had. The docks are quiet, the streets know your
-      name, and the whole bay is open to you. Free roam — keep collecting cash,
-      stealing cars, and outrunning the law.</p>`,
+      name, and the whole bay is open to you. Free roam — keep collecting the $30
+      cash bundles, lifting cars, and outrunning the law.</p>`,
       [{ label: 'Keep playing', onClick: onClose }],
     );
   }
@@ -268,8 +269,8 @@ export class HUD {
       g.lineTo(x4, y4);
       g.stroke();
     }
-    // Named places (small purple squares).
-    g.fillStyle = '#c9a0dc';
+    // Named places (small lavender squares).
+    g.fillStyle = '#d8b4e2';
     for (const place of PLACES) {
       const [x, y] = this.toMap(place.pos[0], place.pos[1]);
       g.fillRect(x - 1, y - 1, 2, 2);
@@ -330,7 +331,7 @@ export class HUD {
     g.restore();
     // North marker.
     g.fillStyle = '#ffffff';
-    g.font = 'bold 10px sans-serif';
-    g.fillText('N', 4, 12);
+    g.font = 'bold 11px sans-serif';
+    g.fillText('N', 4, 13);
   }
 }

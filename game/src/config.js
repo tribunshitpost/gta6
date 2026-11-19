@@ -1,6 +1,8 @@
-// Neon Bay — one place for every tuning number, story beat and landmark.
-// Nothing in the game hard-codes a speed, reward or mission position;
-// change it here and the whole game follows.
+// Neon Bay — every tuning number, story beat and landmark in one place.
+// The rest of the game reads its speeds, rewards and mission positions
+// from here, so a single edit here retunes the whole game. Revision pass:
+// quicker getaways, snappier police cooldown, fatter payouts, and the
+// street names below were renamed to their final in-world names.
 
 // ---------------------------------------------------------------------------
 // Tuning
@@ -15,38 +17,38 @@ export const CONFIG = {
   blockSize: 28, // building-block footprint (roadSpacing - roadWidth)
 
   // The player on foot.
-  playerSpeed: 9, // sprint speed, units / second
-  playerWalkSpeed: 4.5,
+  playerSpeed: 9.5, // sprint speed, units / second
+  playerWalkSpeed: 4.8,
   playerHealth: 100,
 
   // Driving.
-  carAccel: 22,
-  carBrake: 34,
-  carMaxSpeed: 38, // ~137 km/h on the speedometer
-  carMaxReverse: 12,
-  carTurn: 1.9, // steering, radians / second at full lock
+  carAccel: 24,
+  carBrake: 36,
+  carMaxSpeed: 41, // ~148 km/h on the speedometer
+  carMaxReverse: 13,
+  carTurn: 2.0, // steering, radians / second at full lock
 
   // Crowds and pressure.
-  trafficCount: 12,
-  pedestrianCount: 26,
-  maxPoliceCars: 4,
-  maxPoliceFoot: 4,
-  wantedDecaySeconds: 22, // quiet seconds before one star drops
+  trafficCount: 14,
+  pedestrianCount: 30,
+  maxPoliceCars: 5,
+  maxPoliceFoot: 5,
+  wantedDecaySeconds: 18, // quiet seconds before one star drops
 
   // Combat.
-  pistolDamage: 34,
-  pistolAmmo: 12, // rounds per magazine
-  pistolRange: 90,
-  punchDamage: 20,
-  enemyHealth: 100,
-  enemyDamage: 8, // damage per enemy bullet that lands
+  pistolDamage: 38,
+  pistolAmmo: 14, // rounds per magazine
+  pistolRange: 95,
+  punchDamage: 22,
+  enemyHealth: 90,
+  enemyDamage: 7, // damage per enemy bullet that lands
 
   // Money.
-  bustedFine: 120,
-  wastedFine: 150,
-  cashBundleValue: 25,
+  bustedFine: 100,
+  wastedFine: 125,
+  cashBundleValue: 30,
   cashBundleCount: 12,
-  missionRewards: [150, 300, 500],
+  missionRewards: [175, 325, 550],
 
   // Persistence.
   saveKey: 'neon-bay-save-v1',
@@ -70,7 +72,7 @@ export const MISSIONS = [
     title: 'Borrowed Wheels',
     giver: 'Marla Voss',
     intro:
-      'Marla needs a driver she can trust. Borrow a car — any car — and bring it to the paint shop on Coral Row.',
+      'Marla needs a wheelman she can trust, and she needs one tonight. Lift a car — any car on the street — and run it to the paint shop on Coral Avenue so it comes back clean.',
     steps: [
       { type: 'steal', text: 'Steal a car (walk up to one and press E)' },
       {
@@ -78,17 +80,17 @@ export const MISSIONS = [
         pos: [120, 0, -40],
         radius: 6,
         drive: true,
-        text: 'Drive the car to the paint shop on Coral Row',
+        text: 'Drive the car to the paint shop on Coral Avenue',
       },
     ],
-    outro: 'Clean plates, clean conscience. Marla pays $150.',
+    outro: 'Fresh paint, fresh plates, no questions. Marla pays $175.',
   },
   {
     id: 'm2',
     title: 'The Bayfront Drop',
     giver: 'Marla Voss',
     intro:
-      'A package is waiting at Pier 9. Grab it, then deliver it to the club on Sunset Strip. The harbour patrol is watching — expect heat.',
+      'A package is sitting unguarded at Pier 9, and the harbour patrol is already sniffing around it. Grab the package, then run it to the Sunset Club on Sunset Boulevard before the heat catches up.',
     steps: [
       { type: 'pickup', pos: [-160, 0, 160], radius: 5, text: 'Pick up the package at Pier 9' },
       {
@@ -98,20 +100,20 @@ export const MISSIONS = [
         text: 'Deliver the package to the club (police are on your tail!)',
       },
     ],
-    outro: 'Delivered, no questions asked. Marla pays $300.',
+    outro: 'Delivered, no names exchanged. Marla pays $325.',
   },
   {
     id: 'm3',
-    title: 'Dockyard Debt',
+    title: 'Dockside Debt',
     giver: 'Marla Voss',
     intro:
-      'The Kestrel crew skimmed Marla’s cut at the dockyard. Go to the docks, settle the debt, and come back in one piece.',
+      'The Kestrel crew skimmed Marla’s cut at the docks and laughed about it. Go down to the dockyard, settle the debt in person, and come back in one piece.',
     steps: [
       { type: 'goto', pos: [-120, 0, 120], radius: 8, text: 'Reach the dockyard' },
-      { type: 'eliminate', count: 6, text: 'Deal with the Kestrel crew (6 remaining)' },
+      { type: 'eliminate', count: 5, text: 'Deal with the Kestrel crew (5 remaining)' },
       { type: 'return', pos: [40, 0, -120], radius: 6, text: 'Return to Marla at the Voss office' },
     ],
-    outro: 'The docks are quiet again. Marla pays $500. Neon Bay is yours now, Rook.',
+    outro: 'The docks are quiet again. Marla pays $550. Neon Bay is yours now, Rook.',
   },
 ];
 
@@ -119,7 +121,7 @@ export const MISSIONS = [
 // Free-roam cash bundles and named places
 // ---------------------------------------------------------------------------
 
-// Green cash-bundle pickup spots scattered around the city ($25 each).
+// Green cash-bundle pickup spots scattered around the city ($30 each).
 export const CASH_SPOTS = [
   [-180, -180],
   [-60, -180],
@@ -142,5 +144,5 @@ export const PLACES = [
   { name: 'Paint Shop', pos: [120, -40] },
   { name: 'Sunset Club', pos: [160, 120] },
   { name: 'Dockyard', pos: [-120, 120] },
-  { name: 'Neon Plaza', pos: [0, 0] },
+  { name: 'Neon Square', pos: [0, 0] },
 ];

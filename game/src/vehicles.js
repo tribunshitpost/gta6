@@ -4,12 +4,12 @@
 
 import * as THREE from 'three';
 import { CONFIG } from './config.js';
-import { makeRng, clamp, turnToward, dist2D } from './util.js';
+import { makeRng, clamp, turnToward, dist2D, randomInRange } from './util.js';
 import { nearestRoad, roadCoords } from './city.js';
 
 const CAR_COLORS = [
   0xd23c3c, 0x3c7ed2, 0xe8c33c, 0x3cd27a, 0xd2d2d2,
-  0x2b2b33, 0xd2691e, 0x7a3cd2, 0x3cd2c2, 0xe88ab0,
+  0x2b2b33, 0xd2691e, 0x7a3cd2, 0x3cd2c2, 0xe88ab0, 0xff8c42,
 ];
 const WHEEL_SPOTS = [[-1.0, 1.45], [1.0, 1.45], [-1.0, -1.45], [1.0, -1.45]];
 const CARDINAL_HEADINGS = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
@@ -27,6 +27,11 @@ export function buildCarMesh(color, police = false) {
   const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.65, 2.2), glassMat);
   cabin.position.set(0, 1.3, -0.2);
   group.add(cabin);
+
+  // Rear spoiler — every street car in Neon Bay wears one.
+  const spoiler = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.12, 0.45), bodyMat);
+  spoiler.position.set(0, 1.08, -2.05);
+  group.add(spoiler);
 
   const wheelGeo = new THREE.CylinderGeometry(0.42, 0.42, 0.35, 10);
   const wheelMat = new THREE.MeshLambertMaterial({ color: 0x141414 });
@@ -96,7 +101,7 @@ export class Car {
     // Traffic-loop state.
     this.loop = null;
     this.loopIndex = 0;
-    this.cruise = 7 + Math.random() * 4;
+    this.cruise = randomInRange(null, 8, 13);
     this.stopped = 0;
   }
 
@@ -107,7 +112,7 @@ export class Car {
   }
 
   /** Is another car directly ahead of this one (within `lookAhead`)? */
-  carAhead(others, lookAhead = 9) {
+  carAhead(others, lookAhead = 10) {
     const forwardX = Math.sin(this.heading);
     const forwardZ = Math.cos(this.heading);
     for (const other of others) {
@@ -136,9 +141,9 @@ export class Car {
       return;
     }
     const wantHeading = Math.atan2(target[0] - this.x, target[1] - this.z);
-    this.heading = turnToward(this.heading, wantHeading, 1.6 * dt);
+    this.heading = turnToward(this.heading, wantHeading, 1.8 * dt);
     const targetSpeed = this.carAhead(others) ? 0 : this.cruise;
-    this.speed += clamp(targetSpeed - this.speed, -14 * dt, 8 * dt);
+    this.speed += clamp(targetSpeed - this.speed, -16 * dt, 9 * dt);
     this.x += Math.sin(this.heading) * this.speed * dt;
     this.z += Math.cos(this.heading) * this.speed * dt;
     [this.x, this.z] = city.resolveCollisions(this.x, this.z, CAR_RADIUS);
@@ -183,8 +188,8 @@ export class Car {
     const spin = this.speed * 0.4 * 0.016;
     for (const wheel of this.wheels) wheel.rotation.x += spin;
     // Front wheels steer visually.
-    this.wheels[0].rotation.y = this.steer * 0.25;
-    this.wheels[1].rotation.y = this.steer * 0.25;
+    this.wheels[0].rotation.y = this.steer * 0.3;
+    this.wheels[1].rotation.y = this.steer * 0.3;
   }
 
   dispose() {

@@ -10,12 +10,13 @@ import { makeRng, clamp, dist2D, resolveCircleBox } from './util.js';
 const HALF = CONFIG.cityHalf;
 const SPACING = CONFIG.roadSpacing;
 const ROAD_W = CONFIG.roadWidth;
-const CITY_SEED = 20261119;
+const CITY_SEED = 20261120;
 
 // Facade colours for the buildings, picked per building.
 const FACADE_PALETTE = [
   '#e8b04b', '#d97b6c', '#7fb3d5', '#a8c686', '#c9a0dc',
   '#e07856', '#6fc2b8', '#f2e3c6', '#9aa5b1', '#e8c468',
+  '#5fb8a6', '#d98ab0',
 ];
 
 // ---------------------------------------------------------------------------
@@ -159,13 +160,13 @@ export class City {
   buildLights() {
     const hemi = new THREE.HemisphereLight(0xbfd9ff, 0x8a6f4d, 0.9);
     this.scene.add(hemi);
-    const sun = new THREE.DirectionalLight(0xffe7b0, 2.1);
+    const sun = new THREE.DirectionalLight(0xffe7b0, 2.3);
     sun.position.set(120, 180, 60);
     this.scene.add(sun);
     this.scene.add(sun.target);
     // Warm late-afternoon sky + haze.
     this.scene.background = new THREE.Color(0x87bfe8);
-    this.scene.fog = new THREE.Fog(0x9fc6e8, 220, 520);
+    this.scene.fog = new THREE.Fog(0x9fc6e8, 200, 520);
   }
 
   buildGround() {
@@ -188,8 +189,8 @@ export class City {
       for (const cz of roads) {
         const bx = cx + SPACING / 2;
         const bz = cz + SPACING / 2;
-        // Keep the central plaza open and the dockyard / beach clear.
-        if (bx === 20 && bz === 20) continue; // plaza
+        // Keep the central square open and the dockyard / beach clear.
+        if (bx === 20 && bz === 20) continue; // square
         if (bz >= 120 && bx <= -80) continue; // dockyard
         if (bz >= 160) continue; // beach strip
         const w = CONFIG.blockSize * (0.7 + rng() * 0.3);
@@ -227,14 +228,14 @@ export class City {
         }
       }
     }
-    // Central plaza: fountain + open space at (20, 20).
+    // Central square: a wide fountain + open space at (20, 20).
     const plaza = new THREE.Mesh(
-      new THREE.CylinderGeometry(7, 8, 1.2, 24),
+      new THREE.CylinderGeometry(8, 9, 1.4, 24),
       new THREE.MeshLambertMaterial({ color: 0x7fb8d8 }),
     );
-    plaza.position.set(20, 0.6, 20);
+    plaza.position.set(20, 0.7, 20);
     this.scene.add(plaza);
-    this.colliders.push({ minX: 13, maxX: 27, minZ: 13, maxZ: 27 });
+    this.colliders.push({ minX: 12, maxX: 28, minZ: 12, maxZ: 28 });
     const jet = new THREE.Mesh(
       new THREE.CylinderGeometry(0.4, 1.4, 6, 8),
       new THREE.MeshLambertMaterial({ color: 0xbfe8ff, transparent: true, opacity: 0.7 }),
@@ -338,7 +339,7 @@ export class City {
     const crateMat = new THREE.MeshLambertMaterial({ color: 0xb08a3e });
     const crateMat2 = new THREE.MeshLambertMaterial({ color: 0x5a7a9a });
     const crateGeo = new THREE.BoxGeometry(4, 4, 4);
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < 18; i++) {
       const cx = -160 + rng() * 70;
       const cz = 120 + rng() * 36;
       const crate = new THREE.Mesh(crateGeo, rng() < 0.5 ? crateMat : crateMat2);
@@ -357,6 +358,7 @@ export class City {
       { text: 'SUNSET CLUB', pos: [160, 16, 120], color: '#ffb347', bg: '#241024', w: 22 },
       { text: 'PIER 9', pos: [-160, 10, 178], color: '#7dff8a', bg: '#0a2418', w: 14 },
       { text: 'PAINT SHOP', pos: [120, 14, -40], color: '#ff6b6b', bg: '#241014', w: 18 },
+      { text: 'BAYFRONT', pos: [-80, 12, 178], color: '#59f7ff', bg: '#0a1a24', w: 20 },
     ];
     for (const sign of signs) {
       const tex = signTexture(sign.text, sign.color, sign.bg);

@@ -18,12 +18,12 @@ import { AudioEngine } from './audio.js';
 import { loadSave, writeSave, clearSave, hasSave } from './save.js';
 import { stageShot, armShotReady } from './shots.js';
 
-const SPAWN = [20, 20]; // Neon Plaza, where Rook starts (and respawns)
+const SPAWN = [20, 20]; // Neon Square, where Rook starts (and respawns)
 const GIVER_POS = [40, -120]; // Marla's office
-const NEAR_CAR_DIST = 5.5; // how close the player must be to enter a car
-const NEAR_GIVER_DIST = 5; // how close to Marla to start a mission
+const NEAR_CAR_DIST = 6; // how close the player must be to enter a car
+const NEAR_GIVER_DIST = 6; // how close to Marla to start a mission
 const PLAYER_RADIUS = 0.6;
-const CAR_PUSH_DIST = 2.8; // on-foot player is pushed out of cars this far
+const CAR_PUSH_DIST = 3.0; // on-foot player is pushed out of cars this far
 
 // ---------------------------------------------------------------------------
 // The player on foot
@@ -45,10 +45,10 @@ class Player {
     this.legR = mesh.legR;
     this.armL = mesh.armL;
     this.armR = mesh.armR;
-    // Rook's cap.
+    // Rook's navy cap.
     const cap = new THREE.Mesh(
       new THREE.BoxGeometry(0.46, 0.16, 0.46),
-      new THREE.MeshLambertMaterial({ color: 0x1a1a1a }),
+      new THREE.MeshLambertMaterial({ color: 0x223344 }),
     );
     cap.position.y = 2.02;
     this.group.add(cap);
@@ -134,7 +134,7 @@ export class Game {
     this.inCar = null;
     this.camYaw = Math.PI;
     this.camPitch = 0.32;
-    this.camDist = 9;
+    this.camDist = 10;
     this.camMode = 0; // 0 near, 1 far, 2 top
     this.time = 0;
     this.crimeTimer = 0;
@@ -238,7 +238,7 @@ export class Game {
     this.player.z = data.playerZ ?? SPAWN[1];
     this.player.group.position.set(this.player.x, 0, this.player.z);
     this.missions.applySave(data);
-    this.hud.toast('Save loaded — welcome back, Rook.');
+    this.hud.toast('Save loaded — welcome back to Neon Bay, Rook.');
   }
 
   saveGame() {
@@ -301,9 +301,9 @@ export class Game {
     if (!wasParked) {
       this.carsStolen += 1;
       this.commitCrime(1);
-      this.hud.toast('Car stolen! Wanted level up — lose the cops!');
+      this.hud.toast('Hot car! The law is coming — lose them!');
       this.audio.denied();
-      this.peds.scareNear(car.x, car.z, 15);
+      this.peds.scareNear(car.x, car.z, 18);
     } else {
       this.audio.click();
     }
@@ -407,7 +407,7 @@ export class Game {
 
     if (this.state === 'menu') {
       // Slow cinematic orbit behind the title screen.
-      this.camYaw += dt * 0.05;
+      this.camYaw += dt * 0.04;
       this.updateCamera(dt, true);
       this.traffic.update(dt);
       this.peds.update(dt, 0, 0, false);
@@ -518,6 +518,7 @@ export class Game {
   /** Open the pause menu (Resume / Save / Quit to Title). */
   pauseGame() {
     this.state = 'paused';
+    this.input.reset(); // never resume with a key stuck down
     this.hud.showPause(
       () => {
         this.state = 'playing';
@@ -563,8 +564,8 @@ export class Game {
     this.audio.setEngine(Math.abs(this.inCar.speed) / CONFIG.carMaxSpeed, true);
     const ram = this.police.carCollision(this.inCar.x, this.inCar.z, 3.6);
     if (ram) {
-      this.inCar.speed *= 0.92;
-      this.camPitch += (Math.random() - 0.5) * 0.01;
+      this.inCar.speed *= 0.9;
+      this.camPitch += (Math.random() - 0.5) * 0.012;
     }
   }
 
@@ -610,10 +611,10 @@ export class Game {
     // Slow health regen when calm and unhurt for a while.
     const calm =
       this.wanted.stars === 0 &&
-      this.time - this.player.lastDamageAt > 10 &&
+      this.time - this.player.lastDamageAt > 8 &&
       this.player.health < CONFIG.playerHealth;
     if (calm) {
-      this.player.health = Math.min(CONFIG.playerHealth, this.player.health + 2 * dt);
+      this.player.health = Math.min(CONFIG.playerHealth, this.player.health + 3 * dt);
     }
   }
 
@@ -625,7 +626,7 @@ export class Game {
       if (fired) {
         this.audio.gunshot();
         const d = dist2D(enemy.x, enemy.z, px, pz);
-        const hitChance = clamp(0.45 - d / 120, 0.08, 0.4);
+        const hitChance = clamp(0.4 - d / 140, 0.08, 0.35);
         if (Math.random() < hitChance) this.damagePlayer(CONFIG.enemyDamage, 'enemy');
       }
     }

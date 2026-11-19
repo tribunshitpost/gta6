@@ -3,6 +3,9 @@
 // world beacon at the objective, and pays out on completion. The main
 // loop owns the money and the wanted level; this module only reports
 // what happened through events and callbacks.
+// Revision: a wider cash pickup radius, a taller and brighter beacon,
+// a reshuffled Kestrel spawn fan for the dockyard fight, and a longer
+// banner hold so objective changes actually get read.
 
 import * as THREE from 'three';
 import { MISSIONS, CASH_SPOTS, CONFIG } from './config.js';
@@ -10,7 +13,7 @@ import { dist2D } from './util.js';
 
 const GIVER_POS = [40, 0, -120]; // Marla's office (idle beacon target)
 const DOCKYARD_BASE = [-120, 120]; // where the Kestrel crew spawns
-const CASH_PICKUP_RADIUS = 2.2;
+const CASH_PICKUP_RADIUS = 2.6;
 
 export class MissionRunner {
   constructor(scene) {
@@ -31,13 +34,13 @@ export class MissionRunner {
     const beaconMat = new THREE.MeshBasicMaterial({
       color: 0xffd24a,
       transparent: true,
-      opacity: 0.35,
+      opacity: 0.4,
     });
     this.beacon = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 40, 16, 1, true), beaconMat);
     this.beacon.visible = false;
     scene.add(this.beacon);
     this.gem = new THREE.Mesh(
-      new THREE.OctahedronGeometry(1.1),
+      new THREE.OctahedronGeometry(1.3),
       new THREE.MeshBasicMaterial({ color: 0xffd24a }),
     );
     this.gem.visible = false;
@@ -87,7 +90,7 @@ export class MissionRunner {
     return true;
   }
 
-  showBanner(text, seconds = 4) {
+  showBanner(text, seconds = 5) {
     this.banner = text;
     this.bannerTimer = seconds;
   }
@@ -97,12 +100,12 @@ export class MissionRunner {
     const step = this.currentStep();
     if (!step) return;
     if (step.type === 'eliminate' && this.onEnemySpawn) {
-      // Kestrel crew positions fanned out around the dockyard.
+      // Kestrel crew positions fanned out around the dockyard crates.
       const spots = [];
       for (let i = 0; i < step.count; i++) {
         spots.push([
-          DOCKYARD_BASE[0] + ((i % 3) * 14 - 14 + (i * 7) % 9),
-          DOCKYARD_BASE[1] + (Math.floor(i / 3) * 16 - 8),
+          DOCKYARD_BASE[0] + ((i % 3) * 16 - 16 + (i * 5) % 11),
+          DOCKYARD_BASE[1] + (Math.floor(i / 3) * 18 - 9),
         ]);
       }
       this.onEnemySpawn(spots);
@@ -169,7 +172,7 @@ export class MissionRunner {
         mesh.visible = false;
         continue;
       }
-      mesh.rotation.y += dt * 2;
+      mesh.rotation.y += dt * 2.5;
       mesh.position.y = 0.9 + Math.sin(this.gemPhase * 2 + i) * 0.15;
       if (dist2D(ctx.px, ctx.pz, CASH_SPOTS[i][0], CASH_SPOTS[i][1]) < CASH_PICKUP_RADIUS) {
         this.cashTaken.add(i);
@@ -184,7 +187,7 @@ export class MissionRunner {
       this.beacon.visible = true;
       this.gem.visible = true;
       this.beacon.position.set(target[0], 20, target[2]);
-      this.gem.position.set(target[0], 5 + Math.sin(this.gemPhase * 2.5) * 0.5, target[2]);
+      this.gem.position.set(target[0], 5.5 + Math.sin(this.gemPhase * 2.5) * 0.5, target[2]);
       this.gem.rotation.y += dt * 2;
     } else {
       this.beacon.visible = false;
@@ -211,7 +214,7 @@ export class MissionRunner {
 
   /** Text for the HUD objective line. */
   objectiveText() {
-    if (this.allDone()) return 'All missions complete — Neon Bay is yours. Free roam!';
+    if (this.allDone()) return 'Every job done — Neon Bay is yours now. Free roam!';
     const mission = this.currentMission();
     if (!this.active) {
       return `Go to Marla's office (gold beacon) and press E to start: ${mission.title}`;

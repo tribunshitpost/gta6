@@ -1,6 +1,9 @@
 // Combat: the player's pistol and fists, enemy gang members who shoot
 // back, tracers, muzzle flashes and hit feedback.
 // Shooting is a raycast from the camera through the crosshair.
+// Revision: a snappier pistol (faster follow-ups, 14-round mag, bigger
+// reserve), quicker enemy footwork, and a longer tracer so shots read
+// better at dusk lighting.
 
 import * as THREE from 'three';
 import { CONFIG } from './config.js';
@@ -10,9 +13,9 @@ import { buildPersonMesh } from './pedestrians.js';
 const ENEMY_SHIRT = 0x8a1a1a;
 const ENEMY_PANTS = 0x222222;
 const ENEMY_SKIN = 0xc98d5f;
-const ENEMY_SIGHT = 42; // enemies engage inside this range
-const TRACER_LIFETIME = 0.07;
-const SHOT_COOLDOWN = 0.28;
+const ENEMY_SIGHT = 46; // enemies engage inside this range
+const TRACER_LIFETIME = 0.09;
+const SHOT_COOLDOWN = 0.24;
 
 /** One Kestrel crew member: approaches the player and shoots back. */
 export class Enemy {
@@ -51,24 +54,24 @@ export class Enemy {
       this.heading = turnToward(this.heading, want, 3 * dt);
       this.shootTimer -= dt;
       if (this.shootTimer <= 0) {
-        this.shootTimer = 1.1 + Math.random() * 1.2;
+        this.shootTimer = 1.3 + Math.random() * 1.4;
         fired = true;
       }
       // Strafe to hold a fighting distance: back off when too close,
       // close in when too far.
       if (d < 10) {
-        this.x -= Math.sin(this.heading) * 2.2 * dt;
-        this.z -= Math.cos(this.heading) * 2.2 * dt;
+        this.x -= Math.sin(this.heading) * 2.6 * dt;
+        this.z -= Math.cos(this.heading) * 2.6 * dt;
       } else if (d > 26) {
-        this.x += Math.sin(this.heading) * 3.4 * dt;
-        this.z += Math.cos(this.heading) * 3.4 * dt;
+        this.x += Math.sin(this.heading) * 3.8 * dt;
+        this.z += Math.cos(this.heading) * 3.8 * dt;
       }
     } else if (playerAlive) {
       // Out of range: walk toward the player.
       const want = Math.atan2(px - this.x, pz - this.z);
       this.heading = turnToward(this.heading, want, 2 * dt);
-      this.x += Math.sin(this.heading) * 3.4 * dt;
-      this.z += Math.cos(this.heading) * 3.4 * dt;
+      this.x += Math.sin(this.heading) * 3.8 * dt;
+      this.z += Math.cos(this.heading) * 3.8 * dt;
     }
     [this.x, this.z] = city.resolveCollisions(this.x, this.z, 0.6);
     this.walkPhase += dt * 8;
@@ -100,7 +103,7 @@ export class Combat {
   constructor(scene) {
     this.scene = scene;
     this.ammo = CONFIG.pistolAmmo;
-    this.ammoReserve = 48;
+    this.ammoReserve = 56;
     this.cooldown = 0;
     this.enemies = [];
     this.raycaster = new THREE.Raycaster();
@@ -195,7 +198,7 @@ export class Combat {
     this.tracer.visible = true;
     this.tracerTimer = TRACER_LIFETIME;
     this.flash.position.copy(from).add(this.raycaster.ray.direction.clone().multiplyScalar(1.2));
-    this.flash.intensity = 6;
+    this.flash.intensity = 7;
   }
 
   update(dt) {
@@ -208,7 +211,7 @@ export class Combat {
   }
 
   /** Melee: punch the nearest target within range. Returns the target or null. */
-  punch(px, pz, targets, range = 2.6) {
+  punch(px, pz, targets, range = 2.8) {
     let best = null;
     let bestDist = range;
     for (const target of targets) {

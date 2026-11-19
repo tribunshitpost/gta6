@@ -1,6 +1,9 @@
 // Keyboard + mouse input. Tracks held keys, edge-triggered presses and
 // pointer-lock mouse look. No game logic lives here — this module only
 // reports what the player did, and the main loop decides what it means.
+// Revision: mouse-look sensitivity is now a property the main loop reads,
+// so the look speed can be tuned in one place instead of a magic number
+// buried in the camera code.
 
 // Keys whose default browser action (scrolling, focus) would fight the game.
 const SCROLL_KEYS = ['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab'];
@@ -18,6 +21,7 @@ export class Input {
     this.dragging = false; // fallback drag-look when pointer lock is unavailable
     this.lastX = 0;
     this.lastY = 0;
+    this.sensitivity = 1.0; // mouse-look multiplier (1.0 = default feel)
 
     window.addEventListener('keydown', (event) => {
       if (event.repeat) return; // one press per physical key-down
@@ -75,6 +79,12 @@ export class Input {
     });
   }
 
+  /** Scale mouse-look speed (0.5 = half speed, 2.0 = double). Clamped sane. */
+  setSensitivity(value) {
+    const v = Number(value);
+    if (Number.isFinite(v)) this.sensitivity = Math.min(3, Math.max(0.25, v));
+  }
+
   /** True while the key is held down. */
   down(code) {
     return this.keys.has(code);
@@ -85,9 +95,16 @@ export class Input {
     return this.pressed.has(code);
   }
 
-  /** Take this frame's mouse movement and click, then reset them. */
+  /**
+   * Take this frame's mouse movement and click, then reset them.
+   * Movement is already scaled by the sensitivity setting.
+   */
   consumeMouse() {
-    const frame = { dx: this.mouseDX, dy: this.mouseDY, clicked: this.mouseClicked };
+    const frame = {
+      dx: this.mouseDX * this.sensitivity,
+      dy: this.mouseDY * this.sensitivity,
+      clicked: this.mouseClicked,
+    };
     this.mouseDX = 0;
     this.mouseDY = 0;
     this.mouseClicked = false;
@@ -97,6 +114,15 @@ export class Input {
   /** Call once per frame, after the game has read the input. */
   endFrame() {
     this.pressed.clear();
+  }
+
+  /** Forget every held key (used when the game pauses or loses focus). */
+  reset() {
+    this.keys.clear();
+    this.pressed.clear();
+    this.mouseDX = 0;
+    this.mouseDY = 0;
+    this.dragging = false;
   }
 
   /** WASD / arrow keys as a -1..1 pair: forward and strafe. */

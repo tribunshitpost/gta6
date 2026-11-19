@@ -2,12 +2,15 @@
 // Each scene plays the real game forward from a fixed setup, then sets
 // window.__shotReady so the capture script knows the frame is ready.
 // Nothing here is fake: the pixels are the live game.
+// Revision: longer settle times so the chase camera and the dockyard
+// fight are fully framed, and the staged cars sit a touch further apart
+// so the pursuit reads clearly at 1280x720.
 
 // How many animation frames to wait before the scene counts as ready.
 const READY_FRAMES = {
   start: 50,
-  drive: 90,
-  mission: 100,
+  drive: 100,
+  mission: 110,
   city: 70,
   default: 50,
 };
@@ -34,8 +37,8 @@ function stageDrive(game) {
   game.player.z = car.z + 3;
   game.player.group.position.set(game.player.x, 0, game.player.z);
   game.tryEnterCar();
-  game.inCar.heading = Math.PI / 2; // east along Coral Row
-  game.inCar.speed = 24;
+  game.inCar.heading = Math.PI / 2; // east along Coral Avenue
+  game.inCar.speed = 26;
   game.inCar.x = 0;
   game.inCar.z = -40;
   game.inCar.sync();
@@ -43,7 +46,7 @@ function stageDrive(game) {
   // Spawn the pursuit right away instead of waiting for the spawn timer.
   for (let i = 0; i < 3; i++) {
     game.police.spawnTimer = 0;
-    game.police.update(0.1, game.wanted, game.inCar.x, game.inCar.z, true, 24, () => {});
+    game.police.update(0.1, game.wanted, game.inCar.x, game.inCar.z, true, 26, () => {});
   }
   game.camYaw = Math.PI * 1.5;
   game.camPitch = 0.3;
@@ -53,25 +56,25 @@ function stageDrive(game) {
 function stageMission(game) {
   game.missions.missionIndex = 2;
   game.missions.startMission();
-  game.player.x = -120;
-  game.player.z = 116;
+  game.player.x = -118;
+  game.player.z = 112;
   game.player.heading = 0;
   game.player.group.position.set(game.player.x, 0, game.player.z);
   game.player.group.rotation.y = 0;
   game.wanted.addStars(2, 'shot setup');
-  game.camYaw = Math.PI;
+  game.camYaw = Math.PI * 0.95;
   game.camPitch = 0.32;
   // Let the first update complete the "goto" step and spawn the enemies.
 }
 
-/** Stage the 'city' shot: wide high view over Neon Plaza. */
+/** Stage the 'city' shot: wide high view over Neon Square. */
 function stageCity(game) {
   game.player.x = 20;
   game.player.z = 20;
   game.player.group.position.set(20, 0, 20);
   game.camMode = 0;
-  game.camDist = 60;
-  game.camYaw = 0.7;
+  game.camDist = 70;
+  game.camYaw = 0.9;
   game.camPitch = 0.5;
 }
 
