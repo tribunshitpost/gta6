@@ -5,5 +5,14 @@ node_modules/
 out/
 dist/
 
+# Test, coverage and editor artefacts.
+coverage/
+.playwright/
+playwright-report/
+.cache/
+*.log
+*.tmp
+
 # OS artefacts.
 .DS_Store
+Thumbs.db

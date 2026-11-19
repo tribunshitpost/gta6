@@ -1,9 +1,12 @@
 // A tiny static server for game/ (Node 22, standard library only), so the
 // entry can be played locally without a build step: `node serve.ts` serves
-// game/ on http://localhost:8080 (or --port <n>). It sends the MIME types a
-// browser game needs, refuses any path outside game/, and otherwise does
-// nothing clever: this is a development convenience, not a web server for
-// the internet.
+// game/ on http://localhost:8080 (or --port <n> --host <addr>). It sends the
+// MIME types a browser game needs, refuses any path outside game/, and
+// otherwise does nothing clever: this is a development convenience, not a
+// web server for the internet.
+// Revision: the bind address is now configurable (--host), and every
+// response carries X-Content-Type-Options: nosniff so browsers never
+// sniff a script as something else.
 import { createReadStream, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, normalize, resolve, sep } from 'node:path';
@@ -11,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(fileURLToPath(new URL('./game', import.meta.url)));
 const DEFAULT_PORT = 8080;
-const HOST = '127.0.0.1';
+const DEFAULT_HOST = '127.0.0.1';
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -37,13 +40,25 @@ const MIME = {
   '.txt': 'text/plain; charset=utf-8',
 };
 
+/** Read a `--flag <value>` option from argv, or `fallback` when absent. */
+function readOption(argv, flag, fallback) {
+  const index = argv.indexOf(flag);
+  if (index === -1 || index + 1 >= argv.length) return fallback;
+  return argv[index + 1];
+}
+
 /** Parse `--port <n>` from argv; fall back to the default on bad input. */
 function parsePort(argv) {
-  const portIndex = argv.indexOf('--port');
-  if (portIndex === -1) return DEFAULT_PORT;
-  const requested = Number(argv[portIndex + 1]);
+  const requested = Number(readOption(argv, '--port', String(DEFAULT_PORT)));
   if (Number.isInteger(requested) && requested > 0 && requested < 65536) return requested;
   return DEFAULT_PORT;
+}
+
+/** Parse `--host <addr>` from argv; only loopback / local addresses allowed. */
+function parseHost(argv) {
+  const requested = readOption(argv, '--host', DEFAULT_HOST);
+  if (/^(127\.0\.0\.1|localhost|0\.0\.0\.0|::1)$/.test(requested)) return requested;
+  return DEFAULT_HOST;
 }
 
 /** Resolve a request path to a file under the game root, or null if unsafe. */
@@ -69,11 +84,13 @@ function serveFile(file, response) {
     'content-type': MIME[extname(file).toLowerCase()] ?? 'application/octet-stream',
     'content-length': size,
     'cache-control': 'no-store',
+    'x-content-type-options': 'nosniff',
   });
   createReadStream(file).pipe(response);
 }
 
 const port = parsePort(process.argv.slice(2));
+const host = parseHost(process.argv.slice(2));
 
 createServer((request, response) => {
   const url = new URL(request.url ?? '/', 'http://localhost');
@@ -90,6 +107,6 @@ createServer((request, response) => {
     return;
   }
   serveFile(file, response);
-}).listen(port, HOST, () => {
-  console.log(`game/ is on http://${HOST}:${port}`);
+}).listen(port, host, () => {
+  console.log(`game/ is on http://${host}:${port}`);
 });

@@ -5,10 +5,10 @@
 [![reward](https://make.fun/badge/gta6-01/tribunshitpost/gta6/reward.svg)](https://make.fun/bounty/gta6-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
 
 **Neon Bay** is a complete open-world crime game that runs offline in a desktop
-browser. You are **Rook**, a driver fresh off the bus in Neon Bay — a sun-soaked
+browser. You are **Rook**, a wheelman fresh off the bus in Neon Bay — a sun-soaked
 bay city of neon signs, beachfronts, dockyards and grid streets. Marla Voss runs
-the city's quiet jobs, and she needs a driver she can trust. Steal cars, outrun
-the police, run her missions, and make the city yours.
+the city's quiet jobs, and she needs a driver she can trust. Lift cars, lose the
+police, run her missions, and make the city yours.
 
 Everything in the game is original: the city, characters, vehicles, story, art
 and sound were made for this entry. No assets, names, maps or characters from
@@ -29,7 +29,7 @@ The game also works from any static file server pointed at `game/`.
 
 Follow the gold beacon to **Marla's office** and press **E** to start a mission.
 Between missions, explore freely: steal cars, collect the green cash bundles
-hidden around the city ($25 each), and stay out of trouble — or don't.
+hidden around the city ($30 each), and stay out of trouble — or don't.
 
 ## Controls
 
@@ -50,30 +50,33 @@ hidden around the city ($25 each), and stay out of trouble — or don't.
 ## Systems
 
 - **Open-world city** — a 3D grid city built with three.js: ~70 buildings with
-  lit windows, neon signs, a beach and bay with a wooden pier, a central plaza
-  with a fountain, palm trees, street lamps and a dockyard full of crates.
+  lit windows, neon signs, a beach and bay with a wooden pier, a central square
+  with a wide fountain, palm trees, street lamps and a dockyard full of crates.
 - **On foot + driving** — third-person walking with sprint and a chase camera
   for cars; arcade driving physics with acceleration, braking, reverse and
-  steering that only bites once the car is moving.
-- **Traffic & pedestrians** — traffic cars loop around city blocks and stop for
-  the car ahead; pedestrians stroll the sidewalks and panic and flee when
-  scared (gunshots, a stolen car, a wanted player nearby).
+  steering that only bites once the car is moving. Every street car wears a
+  rear spoiler, and traffic cruises a little faster than it used to.
+- **Traffic & pedestrians** — 14 traffic cars loop around city blocks and stop
+  for the car ahead; 30 pedestrians stroll the sidewalks and panic and flee
+  when scared (gunshots, a stolen car, a wanted player nearby).
 - **Stealing cars** — walk up to any traffic car and press E. Stealing raises
   your wanted level by one star; the car is yours until you park it (press E
   again to step out — it stays where you left it).
-- **Wanted system & police** — 0–5 stars. Police cars spawn and ram you while
-  driving; foot cops chase you on foot and bust you if they hold you for
-  ~1.5 seconds. Stay quiet and unseen for 22 seconds and a star drops.
-  Getting busted costs $120, getting wasted costs $150.
+- **Wanted system & police** — 0–5 stars. Police cars spawn every few seconds
+  and ram you while driving; foot cops chase you on foot and bust you if they
+  hold you for ~1.6 seconds. Stay quiet and unseen for 18 seconds and a star
+  drops. Getting busted costs $100, getting wasted costs $125.
 - **Missions & story** — three story missions for Marla Voss: *Borrowed Wheels*
-  (steal a car, deliver it to the paint shop), *The Bayfront Drop* (grab a
-  package at Pier 9, deliver it to the Sunset Club while the police chase you),
-  and *Dockyard Debt* (settle things with the Kestrel crew at the docks). Each
-  pays out ($150 / $300 / $500) and advances the story; finishing all three
+  (steal a car, deliver it to the paint shop on Coral Avenue), *The Bayfront
+  Drop* (grab a package at Pier 9, deliver it to the Sunset Club on Sunset
+  Boulevard while the police chase you), and *Dockside Debt* (settle things
+  with the Kestrel crew at the docks — five of them). Each pays out
+  ($175 / $325 / $550) and advances the story; finishing all three
   opens free roam.
-- **Combat** — pistol with tracers, muzzle flash and limited ammo (12-round
-  magazine, 48 in reserve; R reloads), plus melee punches. The Kestrel crew
-  shoots back during the final mission, with hit chance falling off with range.
+- **Combat** — pistol with tracers, muzzle flash and limited ammo (14-round
+  magazine, 56 in reserve; R reloads), plus melee punches with a slightly
+  longer reach. The Kestrel crew shoots back during the final mission, with
+  hit chance falling off with range.
 - **HUD & minimap** — health bar (green / amber / red), money, wanted stars,
   mission objective with distance, speedometer, ammo counter, crosshair, and a
   live circular minimap showing roads, traffic, police, enemies, uncollected
@@ -91,7 +94,7 @@ hidden around the city ($25 each), and stay out of trouble — or don't.
 
 ```
 main.ts                  entry program: copies game/ + screenshots/ to /output, writes dossier.json
-serve.ts                 tiny static server for local play (node serve.ts [--port N])
+serve.ts                 tiny static server for local play (node serve.ts [--port N] [--host ADDR])
 shots.json               the four screenshot scenes (name + ?shot= query each)
 game/
   index.html             page shell, HUD DOM, import map for three.js
@@ -125,7 +128,7 @@ Playwright Chromium from the `?shot=` scenes in `game/src/shots.js`:
 1. `1-start.jpg` — title screen over the city
 2. `2-drive.jpg` — stolen car, 3 wanted stars, police in pursuit
 3. `3-mission.jpg` — the dockyard showdown (final mission)
-4. `4-city.jpg` — high view over Neon Plaza
+4. `4-city.jpg` — high view over Neon Square
 
 ## License
 
