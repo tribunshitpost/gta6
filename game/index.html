@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Neon Bay — Open-World Crime Game</title>
+<style>
+  /* Page + canvas: the game fills the whole window. */
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0d1520; font-family: 'Segoe UI', Arial, sans-serif; }
+  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  /* Screen-reader-only live status line. */
+  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+  /* ---------- HUD ---------- */
+  #hud { position: fixed; inset: 0; pointer-events: none; color: #fff; user-select: none; }
+  .hidden { display: none !important; }
+  #topleft { position: absolute; top: 14px; left: 14px; text-shadow: 0 2px 4px rgba(0,0,0,.8); }
+  #health-bar { width: 220px; height: 16px; background: rgba(0,0,0,.55); border: 2px solid rgba(255,255,255,.75); border-radius: 3px; overflow: hidden; }
+  #health-fill { height: 100%; width: 100%; background: #37c978; transition: width .2s; }
+  #health-text { font-size: 12px; margin-top: 2px; }
+  #money { font-size: 26px; font-weight: 800; color: #7dff8a; margin-top: 4px; letter-spacing: 1px; }
+  #stars { position: absolute; top: 14px; right: 14px; font-size: 30px; letter-spacing: 4px; color: rgba(255,255,255,.35); text-shadow: 0 2px 6px rgba(0,0,0,.9); }
+  #stars.hot { color: #ffd24a; }
+  #objective { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); max-width: 46%; text-align: center; background: rgba(0,0,0,.55); border-left: 4px solid #ffd24a; padding: 8px 14px; border-radius: 4px; font-size: 14px; line-height: 1.35; }
+  #objective-dist { color: #ffd24a; font-weight: 700; margin-left: 8px; }
+  #prompt { position: absolute; bottom: 118px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,.65); padding: 8px 16px; border-radius: 20px; font-size: 15px; border: 1px solid rgba(255,255,255,.35); }
+  #banner { position: absolute; top: 22%; left: 50%; transform: translateX(-50%); font-size: 30px; font-weight: 800; color: #ffd24a; text-shadow: 0 3px 10px rgba(0,0,0,.9); text-align: center; letter-spacing: 1px; }
+  #speed { position: absolute; bottom: 200px; right: 20px; font-size: 30px; font-weight: 800; text-shadow: 0 2px 6px rgba(0,0,0,.9); }
+  #ammo { position: absolute; bottom: 200px; right: 20px; font-size: 20px; font-weight: 700; text-shadow: 0 2px 6px rgba(0,0,0,.9); }
+  #crosshair { position: absolute; top: 50%; left: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; }
+  #crosshair::before, #crosshair::after { content: ''; position: absolute; background: rgba(255,255,255,.9); box-shadow: 0 0 4px #000; }
+  #crosshair::before { left: 8px; top: 0; width: 2px; height: 18px; }
+  #crosshair::after { top: 8px; left: 0; width: 18px; height: 2px; }
+  #minimap { position: absolute; right: 14px; bottom: 14px; width: 180px; height: 180px; border: 2px solid rgba(255,255,255,.7); border-radius: 50%; background: rgba(0,0,0,.5); box-shadow: 0 4px 14px rgba(0,0,0,.6); }
+  #toast { position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%); background: rgba(20,40,20,.85); border: 1px solid #37c978; padding: 8px 18px; border-radius: 6px; font-size: 15px; }
+  #controls-hint { position: absolute; left: 14px; bottom: 14px; font-size: 12px; color: rgba(255,255,255,.75); text-shadow: 0 1px 3px #000; line-height: 1.5; }
+  #damage-flash { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 55%, rgba(255,0,0,.55) 100%); opacity: 0; transition: opacity .25s; }
+
+  /* ---------- Menus ---------- */
+  #menu { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: linear-gradient(180deg, rgba(10,16,32,.82), rgba(40,10,40,.78)); z-index: 10; }
+  #menu-card { max-width: 620px; margin: 20px; background: rgba(8,12,22,.92); border: 1px solid #ff5ad0; border-radius: 12px; padding: 28px 34px; color: #eee; box-shadow: 0 0 60px rgba(255,90,208,.35); }
+  #menu-title { margin: 0 0 6px; font-size: 44px; letter-spacing: 4px; color: #ff5ad0; text-shadow: 0 0 18px rgba(255,90,208,.8); font-weight: 900; }
+  #menu-body p { line-height: 1.55; font-size: 15px; }
+  #menu-body .tagline { color: #59f7ff; font-size: 17px; margin-top: 0; }
+  #menu-body .hint { color: #bbb; font-size: 13px; }
+  .controls { background: rgba(255,255,255,.06); border-radius: 8px; padding: 12px 16px; margin: 14px 0; font-size: 14px; line-height: 1.9; }
+  .controls b { color: #ffd24a; }
+  #menu-buttons { display: flex; gap: 12px; margin-top: 18px; flex-wrap: wrap; }
+  #menu-buttons button { pointer-events: auto; cursor: pointer; font-size: 16px; font-weight: 700; padding: 12px 26px; border-radius: 8px; border: none; color: #111; background: linear-gradient(180deg, #ffd24a, #f2a541); box-shadow: 0 4px 0 #a86e00; }
+  #menu-buttons button:hover { filter: brightness(1.1); }
+  #menu-buttons button:active { transform: translateY(2px); box-shadow: 0 2px 0 #a86e00; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.min.js" } }
+</script>
+</head>
+<body>
+<canvas id="game" aria-label="Neon Bay: an open-world crime game. Drive, steal cars, outrun the police and run missions for Marla Voss."></canvas>
+<p id="status" role="status" aria-live="polite">Neon Bay loading</p>
+<div id="hud">
+  <div id="topleft">
+    <div id="health-bar"><div id="health-fill"></div></div>
+    <div id="health-text">100</div>
+    <div id="money">$0</div>
+  </div>
+  <div id="stars">☆☆☆☆☆</div>
+  <div id="objective"><span id="objective-text">Welcome to Neon Bay</span><span id="objective-dist"></span></div>
+  <div id="banner" class="hidden"></div>
+  <div id="prompt" class="hidden"></div>
+  <div id="speed" class="hidden">0 km/h</div>
+  <div id="ammo" class="hidden">🔫 12 / 48</div>
+  <div id="crosshair" class="hidden"></div>
+  <canvas id="minimap" width="180" height="180"></canvas>
+  <div id="toast" class="hidden"></div>
+  <div id="controls-hint">WASD move/drive · E enter car · Click shoot · F punch · R reload<br>Shift sprint · C camera · P pause · H help · M mute</div>
+</div>
+<div id="damage-flash"></div>
+<div id="menu">
+  <div id="menu-card">
+    <h1 id="menu-title">NEON BAY</h1>
+    <div id="menu-body"></div>
+    <div id="menu-buttons"></div>
+  </div>
+</div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
