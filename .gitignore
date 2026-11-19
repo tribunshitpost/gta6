@@ -1,0 +1,9 @@
+# Dependencies installed locally (never committed).
+node_modules/
+
+# Local build / hand-in output produced by `node main.ts`.
+out/
+dist/
+
+# OS artefacts.
+.DS_Store
