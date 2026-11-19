@@ -1,8 +1,8 @@
 # Neon Bay — Open-World Crime Game
 
 [![make.fun · gta6-01](https://make.fun/badge/gta6-01.svg)](https://make.fun/bounty/gta6-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
-[![make.fun rank](https://make.fun/badge/rank/gta6.svg)](https://make.fun/bounty/gta6-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
-[![make.fun reward](https://make.fun/badge/reward/gta6.svg)](https://make.fun/bounty/gta6-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
+[![rank](https://make.fun/badge/gta6-01/tribunshitpost/gta6/rank.svg)](https://make.fun/bounty/gta6-01/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
+[![reward](https://make.fun/badge/gta6-01/tribunshitpost/gta6/reward.svg)](https://make.fun/bounty/gta6-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
 
 **Neon Bay** is a complete open-world crime game that runs offline in a desktop
 browser. You are **Rook**, a driver fresh off the bus in Neon Bay — a sun-soaked
