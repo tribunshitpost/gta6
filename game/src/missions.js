@@ -1,252 +1,168 @@
-// Missions and free-roam pickups.
-// The mission runner tracks the current story mission and step, shows a
-// world beacon at the objective, and pays out on completion. The main
-// loop owns the money and the wanted level; this module only reports
-// what happened through events and callbacks.
-// Revision: a wider cash pickup radius, a taller and brighter beacon,
-// a reshuffled Kestrel spawn fan for the dockyard fight, and a longer
-// banner hold so objective changes actually get read.
-
+// Neon Bay — the story: three missions with original dialogue.
+// Each mission is a small state machine: idle -> to-pickup -> to-deliver
+// -> done. The marker is a tall glowing beacon plus a minimap blip, and
+// every step speaks through the dialogue box. Hot Pursuit is the odd one
+// out: it starts with the heat already on and ends at a hideout.
 import * as THREE from 'three';
-import { MISSIONS, CASH_SPOTS, CONFIG } from './config.js';
+import { CONFIG, MISSIONS } from './config.js';
 import { dist2D } from './util.js';
 
-const GIVER_POS = [40, 0, -120]; // Marla's office (idle beacon target)
-const DOCKYARD_BASE = [-120, 120]; // where the Kestrel crew spawns
-const CASH_PICKUP_RADIUS = 2.6;
+const MISSION_SPOTS = [
+  // First Light: fountain pickup -> Coral Row Motel delivery.
+  { pickup: CONFIG.places.fountain, deliver: CONFIG.places.coralDrop },
+  // Hot Pursuit: escape to the Palmetto hideout.
+  { pickup: CONFIG.places.palmettoHideout, deliver: CONFIG.places.palmettoHideout },
+  // Dockside Debt: dock office pickup -> Foundry fence lot delivery.
+  { pickup: CONFIG.places.dockOffice, deliver: CONFIG.places.fenceLot },
+];
 
-export class MissionRunner {
-  constructor(scene) {
+export class Missions {
+  constructor(scene, callbacks) {
     this.scene = scene;
-    this.missionIndex = 0;
-    this.missionsDone = 0;
-    this.stepIndex = 0;
-    this.active = false;
-    this.eliminated = 0;
-    this.banner = ''; // short text shown when a step changes
-    this.bannerTimer = 0;
-    this.onMissionComplete = null; // (mission, reward) => void
-    this.onStepComplete = null; // () => void
-    this.onEnemySpawn = null; // (positions) => void
-    this.onWantedBump = null; // () => void
+    this.cb = callbacks;
+    this.active = null;
+    this.stage = 'idle';
+    this.marker = null;
+    this.markerRing = null;
+    this.dialogue = [];
+    this.dialogueTimer = 0;
+    this.currentLine = '';
+    this._pulse = 0;
+  }
 
-    // Objective beacon: a glowing pillar + a floating diamond.
-    const beaconMat = new THREE.MeshBasicMaterial({
-      color: 0xffd24a,
-      transparent: true,
-      opacity: 0.4,
-    });
-    this.beacon = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 40, 16, 1, true), beaconMat);
-    this.beacon.visible = false;
-    scene.add(this.beacon);
-    this.gem = new THREE.Mesh(
-      new THREE.OctahedronGeometry(1.3),
-      new THREE.MeshBasicMaterial({ color: 0xffd24a }),
-    );
-    this.gem.visible = false;
-    scene.add(this.gem);
-    this.gemPhase = 0;
+  get activeMission() {
+    return this.active === null ? null : MISSIONS[this.active];
+  }
 
-    // Cash bundles: spinning green stacks around the city.
-    this.cashMeshes = [];
-    this.cashTaken = new Set();
-    const cashGeo = new THREE.BoxGeometry(1.4, 0.5, 1.0);
-    const cashMat = new THREE.MeshLambertMaterial({
-      color: 0x37c978,
-      emissive: 0x1a7a3a,
-      emissiveIntensity: 0.5,
-    });
-    for (let i = 0; i < CASH_SPOTS.length; i++) {
-      const mesh = new THREE.Mesh(cashGeo, cashMat);
-      mesh.position.set(CASH_SPOTS[i][0], 0.9, CASH_SPOTS[i][1]);
-      scene.add(mesh);
-      this.cashMeshes.push(mesh);
+  get objectiveText() {
+    if (this.active === null) return 'Press 1, 2 or 3 to start a mission';
+    const m = MISSIONS[this.active];
+    if (this.stage === 'pickup') return m.pickupLabel;
+    if (this.stage === 'deliver') return m.deliverLabel;
+    return m.title + ' — complete';
+  }
+
+  start(index, doneList) {
+    if (this.active !== null) return false;
+    if (index < 0 || index >= MISSIONS.length) return false;
+    const m = MISSIONS[index];
+    this.active = index;
+    this.stage = 'pickup';
+    const spots = MISSION_SPOTS[index];
+    this._placeMarker(spots.pickup);
+    const lines = [
+      m.giver + ': "' + m.intro + '"',
+      'Mission started: ' + m.title + ' — ' + m.pickupLabel,
+    ];
+    if (index === 1) {
+      // Hot Pursuit opens with the police already after the player.
+      this.cb.onHeat(2);
+      lines.push('Deke: "They\'re already on us. Drive like the bay is on fire."');
     }
-  }
-
-  currentMission() {
-    return MISSIONS[this.missionIndex] || null;
-  }
-
-  currentStep() {
-    const mission = this.currentMission();
-    if (!mission) return null;
-    return mission.steps[this.stepIndex] || null;
-  }
-
-  allDone() {
-    return this.missionIndex >= MISSIONS.length;
-  }
-
-  /** Begin the current mission. False when there is none or one is running. */
-  startMission() {
-    const mission = this.currentMission();
-    if (!mission || this.active) return false;
-    this.active = true;
-    this.stepIndex = 0;
-    this.eliminated = 0;
-    this.showBanner(`MISSION: ${mission.title} — ${mission.giver}`);
-    this.applyStepEffects();
+    this._say(lines);
+    if (this.cb.onStart) this.cb.onStart(m);
     return true;
   }
 
-  showBanner(text, seconds = 5) {
-    this.banner = text;
-    this.bannerTimer = seconds;
+  _say(lines) {
+    this.dialogue = [...lines];
+    this._nextLine();
   }
 
-  /** Side effects when a step begins: spawn enemies, or raise the heat. */
-  applyStepEffects() {
-    const step = this.currentStep();
-    if (!step) return;
-    if (step.type === 'eliminate' && this.onEnemySpawn) {
-      // Kestrel crew positions fanned out around the dockyard crates.
-      const spots = [];
-      for (let i = 0; i < step.count; i++) {
-        spots.push([
-          DOCKYARD_BASE[0] + ((i % 3) * 16 - 16 + (i * 5) % 11),
-          DOCKYARD_BASE[1] + (Math.floor(i / 3) * 18 - 9),
-        ]);
+  _nextLine() {
+    this.currentLine = this.dialogue.shift() || '';
+    this.dialogueTimer = this.currentLine ? 5 : 0;
+  }
+
+  _placeMarker(place) {
+    this._clearMarker();
+    const geo = new THREE.CylinderGeometry(1.6, 1.6, 30, 16, 1, true);
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0xffc94d, transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false,
+    });
+    this.marker = new THREE.Mesh(geo, mat);
+    this.marker.position.set(place.x, 15, place.z);
+    this.scene.add(this.marker);
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(2.2, 3, 32),
+      new THREE.MeshBasicMaterial({ color: 0xffc94d, transparent: true, opacity: 0.8, side: THREE.DoubleSide }),
+    );
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.set(place.x, 0.15, place.z);
+    this.scene.add(ring);
+    this.markerRing = ring;
+  }
+
+  _clearMarker() {
+    if (this.marker) { this.scene.remove(this.marker); this.marker = null; }
+    if (this.markerRing) { this.scene.remove(this.markerRing); this.markerRing = null; }
+  }
+
+  // The world position the HUD arrow and minimap should point at.
+  targetPos() {
+    if (this.active === null) return null;
+    const spots = MISSION_SPOTS[this.active];
+    return this.stage === 'pickup' ? spots.pickup : spots.deliver;
+  }
+
+  update(dt, playerPos) {
+    this._pulse += dt;
+    if (this.marker) {
+      this.marker.material.opacity = 0.2 + 0.12 * Math.sin(this._pulse * 3);
+      this.marker.rotation.y += dt * 0.6;
+    }
+    if (this.currentLine) {
+      this.dialogueTimer -= dt;
+      if (this.dialogueTimer <= 0) this._nextLine();
+    }
+    if (this.active === null) return;
+    const target = this.targetPos();
+    if (!target) return;
+    if (dist2D(playerPos.x, playerPos.z, target.x, target.z) < 5) {
+      this._arrive();
+    }
+  }
+
+  _arrive() {
+    const m = MISSIONS[this.active];
+    if (this.stage === 'pickup') {
+      if (this.active === 1) {
+        // Hot Pursuit has no pickup: reaching the hideout ends it.
+        this._complete();
+        return;
       }
-      this.onEnemySpawn(spots);
-    }
-    if (step.type === 'deliver' && this.onWantedBump) {
-      this.onWantedBump();
-    }
-  }
-
-  /** Called when an enemy dies during an eliminate step. */
-  onEnemyKilled() {
-    const step = this.currentStep();
-    if (!step || step.type !== 'eliminate') return;
-    this.eliminated += 1;
-    if (this.eliminated >= step.count) this.completeStep();
-  }
-
-  completeStep() {
-    const mission = this.currentMission();
-    this.stepIndex += 1;
-    if (this.onStepComplete) this.onStepComplete();
-    if (this.stepIndex >= mission.steps.length) {
-      this.completeMission();
-    } else {
-      this.showBanner('Objective updated');
-      this.applyStepEffects();
+      this.stage = 'deliver';
+      const spots = MISSION_SPOTS[this.active];
+      this._placeMarker(spots.deliver);
+      const line = this.active === 0
+        ? 'Mara: "Package secured. Now get it to Coral Row — no detours."'
+        : 'Captain Sorren: "That\'s the money. Bring it to the Foundry, and don\'t stop for anyone."';
+      this._say([line, m.deliverLabel]);
+      if (this.cb.onStage) this.cb.onStage(m, 'deliver');
+    } else if (this.stage === 'deliver') {
+      this._complete();
     }
   }
 
-  completeMission() {
-    const mission = this.currentMission();
-    const reward = CONFIG.missionRewards[this.missionIndex] || 200;
-    this.active = false;
-    this.missionsDone += 1;
-    this.missionIndex += 1;
-    this.stepIndex = 0;
-    this.eliminated = 0;
-    this.showBanner(`MISSION COMPLETE: ${mission.title} — +$${reward}`, 5);
-    if (this.onMissionComplete) this.onMissionComplete(mission, reward);
+  _complete() {
+    const m = MISSIONS[this.active];
+    const reward = CONFIG.economy.missionReward[this.active];
+    this._clearMarker();
+    this._say([m.giver + ': "' + m.doneLine + '"', 'Mission complete: +' + reward + ' dollars']);
+    const finished = this.active;
+    this.active = null;
+    this.stage = 'idle';
+    if (this.cb.onComplete) this.cb.onComplete(m, reward, finished);
   }
 
-  /** Where the beacon should point right now (null = hidden). */
-  beaconTarget() {
-    const step = this.currentStep();
-    if (this.active && step && step.pos) return step.pos;
-    if (!this.active && !this.allDone()) return GIVER_POS;
-    return null;
-  }
-
-  /**
-   * Per-frame mission logic. `ctx` carries the live game state the runner
-   * needs: player position, whether the player is in a car, and the car.
-   * Returns event strings for the main loop to act on ('cash' per pickup).
-   */
-  update(dt, ctx) {
-    const events = [];
-    this.bannerTimer = Math.max(0, this.bannerTimer - dt);
-    this.gemPhase += dt;
-
-    // Spin the cash bundles; collect any the player walks into.
-    for (let i = 0; i < this.cashMeshes.length; i++) {
-      const mesh = this.cashMeshes[i];
-      if (this.cashTaken.has(i)) {
-        mesh.visible = false;
-        continue;
-      }
-      mesh.rotation.y += dt * 2.5;
-      mesh.position.y = 0.9 + Math.sin(this.gemPhase * 2 + i) * 0.15;
-      if (dist2D(ctx.px, ctx.pz, CASH_SPOTS[i][0], CASH_SPOTS[i][1]) < CASH_PICKUP_RADIUS) {
-        this.cashTaken.add(i);
-        mesh.visible = false;
-        events.push('cash');
-      }
-    }
-
-    // Beacon follows the current objective position.
-    const target = this.beaconTarget();
-    if (target) {
-      this.beacon.visible = true;
-      this.gem.visible = true;
-      this.beacon.position.set(target[0], 20, target[2]);
-      this.gem.position.set(target[0], 5.5 + Math.sin(this.gemPhase * 2.5) * 0.5, target[2]);
-      this.gem.rotation.y += dt * 2;
-    } else {
-      this.beacon.visible = false;
-      this.gem.visible = false;
-    }
-
-    // Step completion checks.
-    const step = this.currentStep();
-    if (!this.active || !step) return events;
-    if (step.type === 'steal' && ctx.inCar) {
-      this.completeStep();
-    } else if (
-      (step.type === 'goto' ||
-        step.type === 'pickup' ||
-        step.type === 'deliver' ||
-        step.type === 'return') &&
-      step.pos
-    ) {
-      const reached = dist2D(ctx.px, ctx.pz, step.pos[0], step.pos[2]) < step.radius;
-      if (reached && (!step.drive || ctx.inCar)) this.completeStep();
-    }
-    return events;
-  }
-
-  /** Text for the HUD objective line. */
-  objectiveText() {
-    if (this.allDone()) return 'Every job done — Neon Bay is yours now. Free roam!';
-    const mission = this.currentMission();
-    if (!this.active) {
-      return `Go to Marla's office (gold beacon) and press E to start: ${mission.title}`;
-    }
-    const step = this.currentStep();
-    if (!step) return mission.title;
-    if (step.type === 'eliminate') {
-      const remaining = step.count - this.eliminated;
-      return `${mission.title}: ${step.text.replace(/\(\d+ remaining\)/, `(${remaining} remaining)`)}`;
-    }
-    return `${mission.title}: ${step.text}`;
-  }
-
-  /** Distance in metres to the current objective (null when there is none). */
-  distanceToObjective(px, pz) {
-    const step = this.currentStep();
-    if (this.active && step && step.pos) {
-      return Math.round(dist2D(px, pz, step.pos[0], step.pos[2]));
-    }
-    if (!this.active && !this.allDone()) {
-      return Math.round(dist2D(px, pz, GIVER_POS[0], GIVER_POS[2]));
-    }
-    return null;
-  }
-
-  /** Restore mission progress and collected cash from a save. */
-  applySave(data) {
-    if (!data) return;
-    this.missionIndex = data.missionIndex || 0;
-    this.missionsDone = data.missionsDone || 0;
-    if (Array.isArray(data.cashCollected)) {
-      for (const i of data.cashCollected) this.cashTaken.add(i);
-    }
+  // The player abandoned the mission (busted, or pressed the key again).
+  abandon(reason) {
+    if (this.active === null) return;
+    const m = MISSIONS[this.active];
+    this._clearMarker();
+    this._say(['Mission failed: ' + m.title + ' — ' + reason]);
+    this.active = null;
+    this.stage = 'idle';
+    if (this.cb.onFail) this.cb.onFail(m, reason);
   }
 }

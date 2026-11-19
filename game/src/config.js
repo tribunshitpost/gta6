@@ -1,148 +1,149 @@
-// Neon Bay — every tuning number, story beat and landmark in one place.
-// The rest of the game reads its speeds, rewards and mission positions
-// from here, so a single edit here retunes the whole game. Revision pass:
-// quicker getaways, snappier police cooldown, fatter payouts, and the
-// street names below were renamed to their final in-world names.
-
-// ---------------------------------------------------------------------------
-// Tuning
-// ---------------------------------------------------------------------------
+// Neon Bay — central tuning and world constants.
+// Every system reads its numbers from here so the whole game can be
+// rebalanced in one place. All distances are in metres, all speeds in
+// metres per second, all money in Neon Bay dollars.
 export const CONFIG = {
   title: 'Neon Bay',
+  version: '1.0.0',
+  saveKey: 'neonbay-save-v1',
+  saveVersion: 1,
 
-  // World layout.
-  cityHalf: 200, // playable area is x, z in [-200, 200]
-  roadSpacing: 40, // distance between parallel roads
-  roadWidth: 12,
-  blockSize: 28, // building-block footprint (roadSpacing - roadWidth)
+  // The city is a square, 240 m across, centred on the plaza fountain.
+  cityHalf: 120,
+  roadHalf: 4.5,
+  // Avenue centre lines. Buildings live strictly inside the blocks
+  // between these lines, never on an intersection.
+  avenues: [-90, -45, 0, 45, 90],
+  blockMargin: 5,
 
-  // The player on foot.
-  playerSpeed: 9.5, // sprint speed, units / second
-  playerWalkSpeed: 4.8,
-  playerHealth: 100,
+  player: {
+    walkSpeed: 6,
+    runSpeed: 10,
+    jumpSpeed: 7.5,
+    radius: 0.55,
+    height: 1.8,
+    maxHealth: 100,
+    startCash: 250,
+  },
 
-  // Driving.
-  carAccel: 24,
-  carBrake: 36,
-  carMaxSpeed: 41, // ~148 km/h on the speedometer
-  carMaxReverse: 13,
-  carTurn: 2.0, // steering, radians / second at full lock
+  car: {
+    accel: 22,
+    brake: 34,
+    reverseAccel: 12,
+    maxSpeed: 38,
+    maxReverse: 10,
+    turnRate: 1.9,
+    drag: 0.6,
+    radius: 1.6,
+  },
 
-  // Crowds and pressure.
-  trafficCount: 14,
-  pedestrianCount: 30,
-  maxPoliceCars: 5,
-  maxPoliceFoot: 5,
-  wantedDecaySeconds: 18, // quiet seconds before one star drops
+  traffic: {
+    count: 14,
+    countLowFx: 6,
+    speed: 9,
+    spacing: 26,
+  },
 
-  // Combat.
-  pistolDamage: 38,
-  pistolAmmo: 14, // rounds per magazine
-  pistolRange: 95,
-  punchDamage: 22,
-  enemyHealth: 90,
-  enemyDamage: 7, // damage per enemy bullet that lands
+  pedestrians: {
+    count: 26,
+    countLowFx: 10,
+    walkSpeed: 1.6,
+  },
 
-  // Money.
-  bustedFine: 100,
-  wastedFine: 125,
-  cashBundleValue: 30,
-  cashBundleCount: 12,
-  missionRewards: [175, 325, 550],
+  police: {
+    maxCruisers: 4,
+    chaseSpeed: 30,
+    ramDistance: 3.2,
+    bustDistance: 4.5,
+    bustTime: 4,
+    finePerStar: 120,
+    heatDecaySeconds: 14,
+  },
 
-  // Persistence.
-  saveKey: 'neon-bay-save-v1',
+  combat: {
+    pistolDamage: 34,
+    pistolRange: 55,
+    pistolCooldown: 0.28,
+    maxAmmo: 12,
+  },
+
+  economy: {
+    missionReward: [600, 900, 1200],
+    fenceBase: 350,
+    fencePerCarValue: 1,
+    pickupCash: 75,
+    pickupHealth: 35,
+  },
+
+  // Five districts, each a rectangle with its own palette and flavour.
+  districts: [
+    { name: 'Lumen Square', x: -45, z: -45, w: 90, h: 90, tint: 0xff5fd0, blurb: 'Neon plaza and fountain' },
+    { name: 'Vesper Quay', x: 45, z: -90, w: 75, h: 90, tint: 0x37c8ff, blurb: 'Docks and warehouses' },
+    { name: 'Coral Row', x: -120, z: 0, w: 75, h: 120, tint: 0xff7a4d, blurb: 'Bars, motels and bright signs' },
+    { name: 'Palmetto Heights', x: -45, z: 45, w: 90, h: 75, tint: 0x7dff8a, blurb: 'Palm-lined residential streets' },
+    { name: 'Foundry District', x: 45, z: 45, w: 75, h: 75, tint: 0xffc94d, blurb: 'Factories, cranes and the fence' },
+  ],
+
+  // Named places the missions and the HUD point at.
+  places: {
+    fountain: { x: 0, z: 0, label: 'Lumen Fountain' },
+    coralDrop: { x: -96, z: 22, label: 'Coral Row Motel' },
+    palmettoHideout: { x: -22, z: 96, label: 'Palmetto Hideout' },
+    dockOffice: { x: 96, z: -67, label: 'Dock Office' },
+    fenceLot: { x: 82, z: 82, label: 'Foundry Fence' },
+    garage: { x: -22, z: -22, label: 'Mara\u2019s Garage' },
+  },
+
+  colours: {
+    sky: 0x1b2a4a,
+    dusk: 0xff8c5a,
+    ground: 0x2b2f38,
+    road: 0x1d2026,
+    sidewalk: 0x3a3f4a,
+    water: 0x0e4d6b,
+  },
 };
 
-// ---------------------------------------------------------------------------
-// Story missions
-// ---------------------------------------------------------------------------
-//
-// A mission is a list of steps. A step is one of:
-//   "steal"     — get into any traffic car
-//   "goto"      — reach a marker (drive: true means the player must be in a car)
-//   "pickup"    — walk into a marker
-//   "deliver"   — reach a marker (used for the drop-off leg)
-//   "eliminate" — defeat `count` rivals
-//   "return"    — reach the fixer's office
-// Markers are world positions [x, 0, z] with a completion radius.
+// Which district contains a point, for the HUD location readout.
+export function districtAt(x, z) {
+  for (const d of CONFIG.districts) {
+    if (x >= d.x - d.w / 2 && x <= d.x + d.w / 2 && z >= d.z - d.h / 2 && z <= d.z + d.h / 2) return d;
+  }
+  return CONFIG.districts[0];
+}
+
+// Wanted stars earned by each kind of crime, shared by combat,
+// vehicles (car theft) and pedestrians (hitting a walker).
+export const CRIME_HEAT = { shoot: 1, stealCar: 1, hitPedestrian: 1, ramCop: 2 };
+
+
+// The three story missions, in the order the player meets them.
 export const MISSIONS = [
   {
-    id: 'm1',
-    title: 'Borrowed Wheels',
-    giver: 'Marla Voss',
-    intro:
-      'Marla needs a wheelman she can trust, and she needs one tonight. Lift a car — any car on the street — and run it to the paint shop on Coral Avenue so it comes back clean.',
-    steps: [
-      { type: 'steal', text: 'Steal a car (walk up to one and press E)' },
-      {
-        type: 'goto',
-        pos: [120, 0, -40],
-        radius: 6,
-        drive: true,
-        text: 'Drive the car to the paint shop on Coral Avenue',
-      },
-    ],
-    outro: 'Fresh paint, fresh plates, no questions. Marla pays $175.',
+    id: 'first-light',
+    title: 'First Light',
+    giver: 'Mara Voss',
+    intro: 'Mara needs a package moved before sunrise. Pick it up at the Lumen Fountain, then run it to the Coral Row Motel. Keep it quiet.',
+    pickupLabel: 'Pick up the package at Lumen Fountain',
+    deliverLabel: 'Deliver the package to the Coral Row Motel',
+    doneLine: 'Clean run. Mara pays in full and remembers who showed up.',
   },
   {
-    id: 'm2',
-    title: 'The Bayfront Drop',
-    giver: 'Marla Voss',
-    intro:
-      'A package is sitting unguarded at Pier 9, and the harbour patrol is already sniffing around it. Grab the package, then run it to the Sunset Club on Sunset Boulevard before the heat catches up.',
-    steps: [
-      { type: 'pickup', pos: [-160, 0, 160], radius: 5, text: 'Pick up the package at Pier 9' },
-      {
-        type: 'deliver',
-        pos: [160, 0, 120],
-        radius: 6,
-        text: 'Deliver the package to the club (police are on your tail!)',
-      },
-    ],
-    outro: 'Delivered, no names exchanged. Marla pays $325.',
+    id: 'hot-pursuit',
+    title: 'Hot Pursuit',
+    giver: 'Deke Rollins',
+    intro: 'Deke set off every alarm in Vesper Quay. The heat is on you now — lose the cruisers and reach the Palmetto Hideout before they box you in.',
+    pickupLabel: 'Escape the police and reach Palmetto Heights',
+    deliverLabel: 'Reach the Palmetto Hideout',
+    doneLine: 'You vanished into the palms. Deke owes you one, and he pays his debts.',
   },
   {
-    id: 'm3',
+    id: 'dockside-debt',
     title: 'Dockside Debt',
-    giver: 'Marla Voss',
-    intro:
-      'The Kestrel crew skimmed Marla’s cut at the docks and laughed about it. Go down to the dockyard, settle the debt in person, and come back in one piece.',
-    steps: [
-      { type: 'goto', pos: [-120, 0, 120], radius: 8, text: 'Reach the dockyard' },
-      { type: 'eliminate', count: 5, text: 'Deal with the Kestrel crew (5 remaining)' },
-      { type: 'return', pos: [40, 0, -120], radius: 6, text: 'Return to Marla at the Voss office' },
-    ],
-    outro: 'The docks are quiet again. Marla pays $550. Neon Bay is yours now, Rook.',
+    giver: 'Captain Ilya Sorren',
+    intro: 'A dock foreman skipped out on what he owes the Captain. Collect the debt at the Vesper Quay dock office, then bring it back to the Foundry.',
+    pickupLabel: 'Collect the debt at the Dock Office',
+    deliverLabel: 'Return the money to the Foundry fence lot',
+    doneLine: 'The Captain counts it twice and nods. Debt settled, reputation earned.',
   },
-];
-
-// ---------------------------------------------------------------------------
-// Free-roam cash bundles and named places
-// ---------------------------------------------------------------------------
-
-// Green cash-bundle pickup spots scattered around the city ($30 each).
-export const CASH_SPOTS = [
-  [-180, -180],
-  [-60, -180],
-  [60, -180],
-  [180, -180],
-  [-180, -60],
-  [180, -60],
-  [-180, 60],
-  [180, 60],
-  [-60, 180],
-  [60, 180],
-  [-140, 20],
-  [140, -100],
-];
-
-// Named places shown in mission text and on the minimap.
-export const PLACES = [
-  { name: 'Pier 9', pos: [-160, 160] },
-  { name: 'Voss Office', pos: [40, -120] },
-  { name: 'Paint Shop', pos: [120, -40] },
-  { name: 'Sunset Club', pos: [160, 120] },
-  { name: 'Dockyard', pos: [-120, 120] },
-  { name: 'Neon Square', pos: [0, 0] },
 ];

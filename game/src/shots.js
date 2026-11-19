@@ -1,104 +1,59 @@
-// Deterministic screenshot scenes (?shot=start|drive|mission|city).
-// Each scene plays the real game forward from a fixed setup, then sets
-// window.__shotReady so the capture script knows the frame is ready.
-// Nothing here is fake: the pixels are the live game.
-// Revision: longer settle times so the chase camera and the dockyard
-// fight are fully framed, and the staged cars sit a touch further apart
-// so the pursuit reads clearly at 1280x720.
-
-// How many animation frames to wait before the scene counts as ready.
-const READY_FRAMES = {
-  start: 50,
-  drive: 100,
-  mission: 110,
-  city: 70,
-  default: 50,
-};
-
-/** Set window.__shotReady after `frames` animation frames. */
-export function armShotReady(frames = 60) {
-  let count = 0;
-  window.__shotReady = false;
-  const tick = () => {
-    count += 1;
-    if (count >= frames) {
-      window.__shotReady = true;
-      return;
-    }
-    requestAnimationFrame(tick);
+// Neon Bay — screenshot scenes (?shot=...).
+// Each shot is a fixed, readable moment of the game, used for the four
+// screenshots in screenshots/. The game still runs live in the scene —
+// traffic moves, the camera orbits — so the shot is a real render, not a
+// staged picture. `applyShot` runs after the world is built and returns
+// the camera framing the scene wants.
+export function parseShot() {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    shot: params.get('shot') || '',
+    seed: Number(params.get('seed') || '7'),
+    lowFx: params.get('lowfx') === '1',
   };
-  requestAnimationFrame(tick);
 }
 
-/** Stage the 'drive' shot: stolen car at speed, 3 stars, police closing in. */
-function stageDrive(game) {
-  const car = game.traffic.cars[0];
-  game.player.x = car.x + 3;
-  game.player.z = car.z + 3;
-  game.player.group.position.set(game.player.x, 0, game.player.z);
-  game.tryEnterCar();
-  game.inCar.heading = Math.PI / 2; // east along Coral Avenue
-  game.inCar.speed = 26;
-  game.inCar.x = 0;
-  game.inCar.z = -40;
-  game.inCar.sync();
-  game.wanted.addStars(3, 'shot setup');
-  // Spawn the pursuit right away instead of waiting for the spawn timer.
-  for (let i = 0; i < 3; i++) {
-    game.police.spawnTimer = 0;
-    game.police.update(0.1, game.wanted, game.inCar.x, game.inCar.z, true, 26, () => {});
+// Drive the game into the named scene. `game` is the object main.js
+// exposes (player, car, missions, police, camera rig, ...).
+export function applyShot(game, shot) {
+  if (!shot) return null;
+  if (shot === 'start') {
+    // Title screen over the plaza at dusk: stay on the start screen.
+    game.cameraMode = 'orbit';
+    game.orbitTarget = { x: 0, z: 0 };
+    game.orbitRadius = 55;
+    game.orbitHeight = 26;
+    return { keepTitle: true };
   }
-  game.camYaw = Math.PI * 1.5;
-  game.camPitch = 0.3;
-}
-
-/** Stage the 'mission' shot: final mission at the dockyard, crew in sight. */
-function stageMission(game) {
-  game.missions.missionIndex = 2;
-  game.missions.startMission();
-  game.player.x = -118;
-  game.player.z = 112;
-  game.player.heading = 0;
-  game.player.group.position.set(game.player.x, 0, game.player.z);
-  game.player.group.rotation.y = 0;
-  game.wanted.addStars(2, 'shot setup');
-  game.camYaw = Math.PI * 0.95;
-  game.camPitch = 0.32;
-  // Let the first update complete the "goto" step and spawn the enemies.
-}
-
-/** Stage the 'city' shot: wide high view over Neon Square. */
-function stageCity(game) {
-  game.player.x = 20;
-  game.player.z = 20;
-  game.player.group.position.set(20, 0, 20);
-  game.camMode = 0;
-  game.camDist = 70;
-  game.camYaw = 0.9;
-  game.camPitch = 0.5;
-}
-
-/** Set up a named screenshot scene on the live game. */
-export function stageShot(name, game) {
-  if (name === 'start') {
-    // Title screen over the orbiting city view (the game stays in the menu).
-    armShotReady(READY_FRAMES.start);
-    return;
+  if (shot === 'drive') {
+    // The player is already in a parked car, rolling down an avenue.
+    game.startPlaying();
+    const car = game.parked.nearest(0, 0, 500);
+    if (car) game.enterCar(car);
+    game.playerCar.speed = 18;
+    game.playerCar.heading = Math.PI / 2;
+    game.cameraMode = 'chase';
+    return { keepTitle: false };
   }
-  if (name === 'drive') {
-    stageDrive(game);
-    armShotReady(READY_FRAMES.drive);
-    return;
+  if (shot === 'mission') {
+    // Mid-chase: mission 2 running, two stars of heat, cruisers closing.
+    game.startPlaying();
+    game.missions.start(1, game.state.missionsDone);
+    // (Mission 2 already adds its own 2 stars of heat when it starts.)
+    const car = game.parked.nearest(0, 0, 500);
+    if (car) game.enterCar(car);
+    game.playerCar.speed = 24;
+    game.cameraMode = 'chase';
+    return { keepTitle: false };
   }
-  if (name === 'mission') {
-    stageMission(game);
-    armShotReady(READY_FRAMES.mission);
-    return;
+  if (shot === 'city') {
+    // High wide view over Lumen Square: plaza, towers, neon, docks.
+    game.startPlaying();
+    game.cameraMode = 'orbit';
+    game.orbitTarget = { x: 10, z: -10 };
+    game.orbitRadius = 110;
+    game.orbitHeight = 70;
+    return { keepTitle: false };
   }
-  if (name === 'city') {
-    stageCity(game);
-    armShotReady(READY_FRAMES.city);
-    return;
-  }
-  armShotReady(READY_FRAMES.default);
+  return null;
 }

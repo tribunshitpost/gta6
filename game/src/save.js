@@ -1,64 +1,70 @@
-// Save / load through localStorage. Stores progression, money and the
-// player's position — never anything sensitive. Every read is defensive:
-// a corrupt or foreign value under the save key loads as "no save".
-// Revision: save format v2 — the loader now also rejects saves with a
-// non-numeric money value, and every write stamps the game build so an
-// old save can never be mistaken for a current one.
-
+// Neon Bay — versioned saves in localStorage, with autosave.
+// The save shape carries a version number: if a future build changes the
+// shape, load() refuses the old shape instead of misreading it.
 import { CONFIG } from './config.js';
 
-const SAVE_VERSION = 2;
-const GAME_BUILD = 'neon-bay-1.1';
+export function defaultSave() {
+  return {
+    version: CONFIG.saveVersion,
+    cash: CONFIG.player.startCash,
+    health: CONFIG.player.maxHealth,
+    missionsDone: [],
+    bestWanted: 0,
+    carsFenced: 0,
+    totalEarned: 0,
+    playSeconds: 0,
+    playerX: -6,
+    playerZ: -6,
+    savedAt: Date.now(),
+  };
+}
 
-/** Load the saved game, or null when there is no (valid) save. */
 export function loadSave() {
   try {
-    const raw = localStorage.getItem(CONFIG.saveKey);
+    const raw = window.localStorage.getItem(CONFIG.saveKey);
     if (!raw) return null;
     const data = JSON.parse(raw);
-    if (!data || typeof data !== 'object' || data.version !== SAVE_VERSION) return null;
-    if (typeof data.money !== 'number' || data.money < 0) return null;
-    if (typeof data.missionIndex !== 'number' || data.missionIndex < 0) return null;
+    if (!data || data.version !== CONFIG.saveVersion) return null;
+    // Fill any missing field from the defaults so old-but-same-version
+    // saves never crash the game.
+    const base = defaultSave();
+    for (const key of Object.keys(base)) {
+      if (data[key] === undefined) data[key] = base[key];
+    }
     return data;
   } catch {
     return null;
   }
 }
 
-/** Write the current run state to localStorage. Returns false on failure. */
+// Returns true when the write landed, false when storage is unavailable.
 export function writeSave(state) {
   try {
     const data = {
-      version: SAVE_VERSION,
-      build: GAME_BUILD,
-      money: Math.floor(state.money),
+      version: CONFIG.saveVersion,
+      cash: Math.round(state.cash),
       health: Math.round(state.health),
-      missionIndex: state.missionIndex,
-      missionsDone: state.missionsDone,
-      cashCollected: [...state.cashCollected],
-      playerX: state.player.x,
-      playerZ: state.player.z,
-      totalEarned: Math.floor(state.totalEarned || 0),
-      carsStolen: state.carsStolen || 0,
+      missionsDone: [...state.missionsDone],
+      bestWanted: state.bestWanted,
+      carsFenced: state.carsFenced,
+      totalEarned: Math.round(state.totalEarned),
+      playSeconds: Math.round(state.playSeconds),
+      playerX: state.player.pos.x,
+      playerZ: state.player.pos.z,
       savedAt: Date.now(),
     };
-    localStorage.setItem(CONFIG.saveKey, JSON.stringify(data));
+    window.localStorage.setItem(CONFIG.saveKey, JSON.stringify(data));
     return true;
   } catch {
     return false;
   }
 }
 
-/** Delete the save (used when starting a genuinely new game). */
 export function clearSave() {
   try {
-    localStorage.removeItem(CONFIG.saveKey);
+    window.localStorage.removeItem(CONFIG.saveKey);
+    return true;
   } catch {
-    /* storage unavailable — nothing to clear */
+    return false;
   }
-}
-
-/** True when a loadable save exists. */
-export function hasSave() {
-  return loadSave() !== null;
 }

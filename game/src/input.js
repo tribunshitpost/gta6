@@ -1,138 +1,119 @@
-// Keyboard + mouse input. Tracks held keys, edge-triggered presses and
-// pointer-lock mouse look. No game logic lives here — this module only
-// reports what the player did, and the main loop decides what it means.
-// Revision: mouse-look sensitivity is now a property the main loop reads,
-// so the look speed can be tuned in one place instead of a magic number
-// buried in the camera code.
-
-// Keys whose default browser action (scrolling, focus) would fight the game.
-const SCROLL_KEYS = ['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab'];
-
+// Neon Bay — keyboard and mouse input.
+// One object owns every key and pointer state; game systems ask it
+// questions instead of touching DOM events themselves.
 export class Input {
   constructor(canvas) {
-    this.canvas = canvas;
-    this.keys = new Set(); // currently held key codes
-    this.pressed = new Set(); // codes pressed since the last endFrame()
-    this.mouseDX = 0;
-    this.mouseDY = 0;
+    this.keys = new Set();
+    this.pressed = new Set();
     this.mouseDown = false;
-    this.mouseClicked = false; // left click since the last consumeMouse()
-    this.locked = false; // pointer lock active
-    this.dragging = false; // fallback drag-look when pointer lock is unavailable
-    this.lastX = 0;
-    this.lastY = 0;
-    this.sensitivity = 1.0; // mouse-look multiplier (1.0 = default feel)
+    this.mouseClicked = false;
+    this.dragDX = 0;
+    this.dragDY = 0;
+    this.wheel = 0;
+    this._lastX = 0;
+    this._lastY = 0;
+    this._dragging = false;
+    this._canvas = canvas;
 
-    window.addEventListener('keydown', (event) => {
-      if (event.repeat) return; // one press per physical key-down
-      this.keys.add(event.code);
-      this.pressed.add(event.code);
-      if (SCROLL_KEYS.includes(event.code)) event.preventDefault();
-    });
-    window.addEventListener('keyup', (event) => this.keys.delete(event.code));
-    window.addEventListener('blur', () => {
-      // Losing the window must never leave a key "stuck" down.
-      this.keys.clear();
-      this.dragging = false;
-    });
-
-    document.addEventListener('pointerlockchange', () => {
-      this.locked = document.pointerLockElement === canvas;
-    });
-    document.addEventListener('mousemove', (event) => {
-      if (this.locked) {
-        this.mouseDX += event.movementX;
-        this.mouseDY += event.movementY;
-      } else if (this.dragging) {
-        this.mouseDX += event.clientX - this.lastX;
-        this.mouseDY += event.clientY - this.lastY;
-        this.lastX = event.clientX;
-        this.lastY = event.clientY;
+    window.addEventListener('keydown', (e) => {
+      if (e.repeat) return;
+      this.keys.add(e.code);
+      this.pressed.add(e.code);
+      if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+        e.preventDefault();
       }
     });
+    window.addEventListener('keyup', (e) => {
+      this.keys.delete(e.code);
+    });
+    window.addEventListener('blur', () => {
+      this.keys.clear();
+      this.mouseDown = false;
+      this._dragging = false;
+    });
 
-    canvas.addEventListener('mousedown', (event) => {
-      if (event.button !== 0) return;
+    canvas.addEventListener('pointerdown', (e) => {
       this.mouseDown = true;
       this.mouseClicked = true;
-      if (!this.locked) {
-        this.dragging = true;
-        this.lastX = event.clientX;
-        this.lastY = event.clientY;
-      }
+      this._dragging = true;
+      this._lastX = e.clientX;
+      this._lastY = e.clientY;
+      canvas.setPointerCapture(e.pointerId);
     });
-    window.addEventListener('mouseup', (event) => {
-      if (event.button === 0) {
-        this.mouseDown = false;
-        this.dragging = false;
-      }
+    canvas.addEventListener('pointermove', (e) => {
+      if (!this._dragging) return;
+      this.dragDX += e.clientX - this._lastX;
+      this.dragDY += e.clientY - this._lastY;
+      this._lastX = e.clientX;
+      this._lastY = e.clientY;
     });
-    canvas.addEventListener('click', () => {
-      // Pointer lock gives smooth mouse-look; harmless if the browser refuses.
-      if (!this.locked && document.pointerLockElement !== canvas) {
-        try {
-          canvas.requestPointerLock();
-        } catch {
-          /* ignore — drag-look still works */
-        }
-      }
-    });
+    const endDrag = () => {
+      this.mouseDown = false;
+      this._dragging = false;
+    };
+    canvas.addEventListener('pointerup', endDrag);
+    canvas.addEventListener('pointercancel', endDrag);
+    canvas.addEventListener('wheel', (e) => {
+      this.wheel += e.deltaY;
+      e.preventDefault();
+    }, { passive: false });
   }
 
-  /** Scale mouse-look speed (0.5 = half speed, 2.0 = double). Clamped sane. */
-  setSensitivity(value) {
-    const v = Number(value);
-    if (Number.isFinite(v)) this.sensitivity = Math.min(3, Math.max(0.25, v));
-  }
-
-  /** True while the key is held down. */
   down(code) {
     return this.keys.has(code);
   }
 
-  /** True once per physical press; cleared by endFrame() each frame. */
-  wasPressed(code) {
+  // True only on the frame the key went down; cleared each frame.
+  hit(code) {
     return this.pressed.has(code);
   }
 
-  /**
-   * Take this frame's mouse movement and click, then reset them.
-   * Movement is already scaled by the sensitivity setting.
-   */
-  consumeMouse() {
-    const frame = {
-      dx: this.mouseDX * this.sensitivity,
-      dy: this.mouseDY * this.sensitivity,
-      clicked: this.mouseClicked,
-    };
-    this.mouseDX = 0;
-    this.mouseDY = 0;
-    this.mouseClicked = false;
-    return frame;
+  // Mission keys 1-3: returns the mission index just pressed, or -1.
+  missionKey() {
+    if (this.hit('Digit1')) return 0;
+    if (this.hit('Digit2')) return 1;
+    if (this.hit('Digit3')) return 2;
+    return -1;
   }
 
-  /** Call once per frame, after the game has read the input. */
+  axis(neg, pos) {
+    let v = 0;
+    if (this.down(neg)) v -= 1;
+    if (this.down(pos)) v += 1;
+    return v;
+  }
+
+  get moveX() {
+    return this.axis('KeyA', 'KeyD') + this.axis('ArrowLeft', 'ArrowRight');
+  }
+
+  get moveY() {
+    return this.axis('KeyW', 'KeyS') + this.axis('ArrowUp', 'ArrowDown');
+  }
+
+  consumeDrag() {
+    const dx = this.dragDX;
+    const dy = this.dragDY;
+    this.dragDX = 0;
+    this.dragDY = 0;
+    return { dx, dy };
+  }
+
+  consumeWheel() {
+    const w = this.wheel;
+    this.wheel = 0;
+    return w;
+  }
+
+  consumeClick() {
+    const c = this.mouseClicked;
+    this.mouseClicked = false;
+    return c;
+  }
+
+  // Call at the end of every frame: one-frame presses expire.
   endFrame() {
     this.pressed.clear();
-  }
-
-  /** Forget every held key (used when the game pauses or loses focus). */
-  reset() {
-    this.keys.clear();
-    this.pressed.clear();
-    this.mouseDX = 0;
-    this.mouseDY = 0;
-    this.dragging = false;
-  }
-
-  /** WASD / arrow keys as a -1..1 pair: forward and strafe. */
-  moveAxes() {
-    let forward = 0;
-    let strafe = 0;
-    if (this.down('KeyW') || this.down('ArrowUp')) forward += 1;
-    if (this.down('KeyS') || this.down('ArrowDown')) forward -= 1;
-    if (this.down('KeyD') || this.down('ArrowRight')) strafe += 1;
-    if (this.down('KeyA') || this.down('ArrowLeft')) strafe -= 1;
-    return { forward, strafe };
+    this.mouseClicked = false;
   }
 }
